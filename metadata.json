@@ -1,0 +1,8 @@
+{
+  "name": "Hatalısın Şehir",
+  "description": "Vatandaşları belediye yetkilileriyle buluşturan, daha iyi bir şehir için mobil öncelikli şikayet platformu.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
