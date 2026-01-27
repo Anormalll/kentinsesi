@@ -42,7 +42,8 @@ async def upload_image(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, file_object)
 
     # Frontend'e resmin tam adresini dön (IP adresine gerek yok, localhost yeterli şimdilik)
-    return {"url": f"http://127.0.0.1:8000/uploads/{safe_filename}"}
+    base_url = "https://kentsesi-backend.onrender.com"
+    return {"url": f"{base_url}/uploads/{safe_filename}"}
 
 
 @app.post("/complaints/", response_model=schemas.ComplaintOut)
