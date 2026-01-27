@@ -2,7 +2,7 @@ import shutil
 import os
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles  # <-- Resimler için kritik
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
 from . import models, schemas, database
@@ -12,18 +12,24 @@ models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
 
-# --- 1. RESİM KLASÖRÜ AYARI (Resimlerin görünmesi için şart) ---
-UPLOAD_DIR = "uploads"
+# --- 1. GARANTİLİ KLASÖR YOLU AYARI (DÜZELTME BURADA) ---
+# Dosyanın nerede çalıştığını tam olarak buluyoruz
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Uploads klasörünü backend klasörünün yanına değil, içine sabitliyoruz
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+
+print(f"--- LOG: Resimler şu klasöre kaydedilecek: {UPLOAD_DIR} ---")  # Render loglarında görmek için
+
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-# "uploads" klasörünü dünyaya açıyoruz. Artık http://.../uploads/resim.jpg çalışacak.
+# Klasörü dışarı açıyoruz
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # --- CORS AYARLARI ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tüm IP'lere izin ver (APK ve Localhost için)
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,15 +40,25 @@ app.add_middleware(
 
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...)):
-    # Dosya ismindeki boşlukları temizle
+    # Dosya ismini güvenli hale getir
     safe_filename = file.filename.replace(" ", "_")
-    file_location = f"{UPLOAD_DIR}/{safe_filename}"
 
-    with open(file_location, "wb+") as file_object:
-        shutil.copyfileobj(file.file, file_object)
+    # Dosyanın tam yolunu oluştur
+    file_location = os.path.join(UPLOAD_DIR, safe_filename)
 
-    # Frontend'e resmin tam adresini dön (IP adresine gerek yok, localhost yeterli şimdilik)
+    print(f"--- LOG: Dosya yazılıyor: {file_location} ---")  # Log için
+
+    try:
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+    except Exception as e:
+        print(f"--- HATA: Dosya yazılamadı! {e}")
+        raise HTTPException(status_code=500, detail="Dosya sunucuya kaydedilemedi")
+
+    # Render adresini ver
     base_url = "https://kentsesi-backend.onrender.com"
+
+    # Tam linki oluştur
     return {"url": f"{base_url}/uploads/{safe_filename}"}
 
 
