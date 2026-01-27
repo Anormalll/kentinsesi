@@ -97,7 +97,7 @@ export default function App() {
   const fetchComplaints = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://127.0.0.1:8000/complaints/');
+      const response = await fetch('https://kentinsesi.onrender.com/complaints/');
       if(!response.ok) throw new Error("Backend hatası");
       const data = await response.json();
       const formattedData = data.map((item: any) => ({
@@ -122,11 +122,11 @@ export default function App() {
     try {
         if(data.file) {
             const formData = new FormData(); formData.append('file', data.file);
-            const upRes = await fetch('http://127.0.0.1:8000/upload/', { method: 'POST', body: formData });
+            const upRes = await fetch('https://kentinsesi.onrender.com/upload/', { method: 'POST', body: formData });
             if(upRes.ok) { const json = await upRes.json(); finalImageUrl = json.url; }
         }
         const payload = { ...data, image_url: finalImageUrl };
-        await fetch('http://127.0.0.1:8000/complaints/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        await fetch('https://kentinsesi.onrender.com/complaints/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         
         setIsReportModalOpen(false);
         fetchComplaints(); 
@@ -140,7 +140,7 @@ export default function App() {
     if(!confirm("Bu şikayeti silmek istediğinize emin misiniz?")) return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/complaints/${id}`, { method: 'DELETE' });
+      const res = await fetch(`https://kentinsesi.onrender.com/complaints/${id}`, { method: 'DELETE' });
       if(res.ok) {
         setComplaints(prev => prev.filter(c => c.id !== id));
         if(selectedComplaint?.id === id) setSelectedComplaint(null);

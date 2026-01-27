@@ -1,0 +1,6 @@
+{
+  "appId": "com.kentsesi.app",
+  "appName": "KentSesi",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
