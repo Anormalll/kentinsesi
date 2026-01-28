@@ -56,7 +56,7 @@ async def upload_image(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="Dosya sunucuya kaydedilemedi")
 
     # Render adresini ver
-    base_url = "https://kentsesi-backend.onrender.com"
+    base_url = "https://kentinsesi.onrender.com"
 
     # Tam linki oluştur
     return {"url": f"{base_url}/uploads/{safe_filename}"}
