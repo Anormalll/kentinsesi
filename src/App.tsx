@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home, ClipboardList, User, Plus, MapPin, X, Car, 
   FileText, LogOut, Camera, Loader2, Building2, Trash2, ChevronRight, 
-  ArrowLeft, Globe, BarChart2, ShieldCheck, AlertTriangle, CheckCircle2, Clock
+  ArrowLeft, Globe, BarChart2, ShieldCheck, AlertTriangle, CheckCircle2, Clock, Filter
 } from 'lucide-react';
 import { UserRole, Complaint } from './types';
 
@@ -31,17 +31,17 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   let style = 'bg-gray-100 text-gray-700 border-gray-200';
 
   if (status === 'Beklemede' || status === 'Aldık') {
-      displayStatus = 'Aldık';
+      displayStatus = 'FİRMAYA İLETİLDİ'; 
       style = 'bg-gray-100 text-gray-700 border-gray-200';
   } else if (status === 'İnceleniyor' || status === 'İşlemde' || status === 'İşleniyor') {
-      displayStatus = 'İşleniyor';
+      displayStatus = 'İŞLENİYOR';
       style = 'bg-blue-100 text-blue-700 border-blue-200';
   } else if (status === 'Çözüldü' || status === 'Çözdük') {
-      displayStatus = 'Çözdük';
+      displayStatus = 'ÇÖZÜLDÜ';
       style = 'bg-emerald-100 text-emerald-700 border-emerald-200';
   }
 
-  return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${style}`}>{displayStatus.toUpperCase()}</span>;
+  return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${style}`}>{displayStatus}</span>;
 };
 
 // --- LOGIN EKRANI ---
@@ -49,7 +49,6 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm z-10 text-center border border-zinc-100">
-        {/* LOGO DEĞİŞİMİ: SVG YERİNE RESİM */}
         <div className="w-24 h-24 bg-red-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner p-4">
             <img src="/logo.png" alt="Hatalısın Logo" className="w-full h-full object-contain" />
         </div>
@@ -202,6 +201,10 @@ export default function App() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]); 
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  
+  // YENİ STATE: İNCELENEN PLAKA (Araç listesine tıklayınca açılacak)
+  const [inspectingPlate, setInspectingPlate] = useState<string | null>(null);
+
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false); 
   const [loading, setLoading] = useState(false);
@@ -272,7 +275,6 @@ export default function App() {
     } catch (error) { console.error("Silme hatası:", error); }
   };
 
-  // YENİ EKLENEN DURUM GÜNCELLEME
   const handleUpdateStatus = async (id: string, newStatus: string) => {
       setLoading(true);
       try {
@@ -310,7 +312,8 @@ export default function App() {
     return { total, resolved, pending, processing, allTotal, allResolved };
   }, [complaints]);
 
-  const handleDeleteVehicle = async (id: number) => {
+  const handleDeleteVehicle = async (id: number, e: React.MouseEvent) => {
+      e.stopPropagation(); // Kartın tıklanmasını engelle
       if(!confirm("Aracı silmek istediğine emin misin?")) return;
       await fetch(`https://kentinsesi.onrender.com/vehicles/${id}`, { method: 'DELETE' });
       fetchVehicles();
@@ -329,7 +332,6 @@ export default function App() {
                         <Plus size={32} /> BİLDİRİM OLUŞTUR
                     </button>
                 </div>
-
                 <div>
                     <h3 className="text-zinc-400 text-xs font-bold uppercase mb-4 tracking-wider">Son Bildirimlerim</h3>
                     <div className="space-y-3">
@@ -390,7 +392,9 @@ export default function App() {
                         {vehicles.map(v => {
                             const complaintCount = complaints.filter(c => c.plate === v.plate).length;
                             return (
-                                <div key={v.id} className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center justify-between">
+                                <div key={v.id} 
+                                     onClick={() => setInspectingPlate(v.plate)} // TIKLANINCA PLAKAYI SEÇ
+                                     className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-zinc-400 transition-colors active:bg-zinc-50">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 bg-blue-50 text-blue-700 rounded-full flex items-center justify-center"><Car size={20} /></div>
                                         <div>
@@ -403,7 +407,8 @@ export default function App() {
                                             <span className="text-xs font-bold">{complaintCount}</span>
                                             <span className="text-[8px] uppercase font-bold">İhlal</span>
                                         </div>
-                                        <button onClick={() => handleDeleteVehicle(v.id)} className="text-zinc-300 hover:text-red-500"><Trash2 size={16} /></button>
+                                        {/* Silme butonuna basınca kartın açılmasını engellemek için stopPropagation ekledim */}
+                                        <button onClick={(e) => handleDeleteVehicle(v.id, e)} className="text-zinc-300 hover:text-red-500"><Trash2 size={16} /></button>
                                     </div>
                                 </div>
                             );
@@ -456,7 +461,6 @@ export default function App() {
     <div className="max-w-md mx-auto bg-zinc-50 min-h-screen flex flex-col shadow-2xl relative">
       <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10">
         <div className="flex items-center gap-2">
-            {/* HEADER LOGOSU RESİM OLARAK DEĞİŞTİRİLDİ */}
             <img src="/logo.png" alt="Hatalısın Logo" className="w-8 h-8 object-contain rounded-lg shadow-sm" />
             <span className="font-bold text-zinc-900 tracking-tight text-lg">Hatalısın</span>
         </div>
@@ -483,6 +487,33 @@ export default function App() {
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} onSubmit={handleAddReport} />
       <VehicleModal isOpen={isVehicleModalOpen} onClose={() => setIsVehicleModalOpen(false)} onRefresh={fetchVehicles} />
       
+      {/* PLAKA DETAY MODALI (YENİ EKLENDİ) */}
+      {inspectingPlate && (
+        <div className="fixed inset-0 z-[105] bg-white flex flex-col animate-in slide-in-from-right duration-300">
+             <div className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 sticky top-0 bg-white shadow-sm">
+                <button onClick={() => setInspectingPlate(null)} className="p-2 text-zinc-600 hover:bg-zinc-100 rounded-full"><ArrowLeft /></button>
+                <span className="font-bold text-lg font-mono text-zinc-900">{inspectingPlate}</span>
+                <div className="w-10" />
+             </div>
+             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                 <h2 className="text-zinc-400 text-xs font-bold uppercase mb-2">Bu Araca Ait Bildirimler</h2>
+                 {complaints.filter(c => c.plate === inspectingPlate).length === 0 ? 
+                    <div className="text-center text-zinc-400 py-10 border border-dashed rounded-xl">Kayıtlı ihlal bulunamadı.</div> :
+                    complaints.filter(c => c.plate === inspectingPlate).map(c => (
+                        <div key={c.id} onClick={() => setSelectedComplaint(c)} className="bg-white p-3 rounded-xl border border-zinc-200 flex items-center gap-3 shadow-sm active:bg-zinc-50 cursor-pointer">
+                            <StatusBadge status={c.status} />
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-sm text-zinc-900 truncate">{c.title}</h4>
+                                <p className="text-[10px] text-zinc-400 line-clamp-1">{c.location}</p>
+                            </div>
+                            <ChevronRight size={16} className="text-zinc-300" />
+                        </div>
+                    ))
+                 }
+             </div>
+        </div>
+      )}
+
       {selectedComplaint && (
         <div className="fixed inset-0 z-[110] bg-white flex flex-col animate-in slide-in-from-right duration-300">
              <div className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 sticky top-0 bg-white shadow-sm"><button onClick={() => setSelectedComplaint(null)} className="p-2 text-zinc-600 hover:bg-zinc-100 rounded-full"><ArrowLeft /></button><span className="text-xs font-bold text-zinc-500">DETAY #{selectedComplaint.id.slice(0,4)}</span>
@@ -503,7 +534,7 @@ export default function App() {
                         <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100"><p className="text-[10px] font-bold text-zinc-400 uppercase mb-1">KONUM</p><p className="text-xs text-zinc-800 line-clamp-2">{selectedComplaint.location}</p></div>
                     </div>
 
-                    {/* YENİ EKLENEN BUTONLAR (BELEDİYE YETKİLİSİ İÇİN) */}
+                    {/* YETKİLİ İÇİN DURUM BUTONLARI (BURADA) */}
                     {role === 'BELEDIYE_YETKILISI' && (
                         <div className="mt-6 pt-6 border-t border-zinc-100">
                             <p className="text-xs font-bold text-zinc-400 uppercase mb-3 text-center">Durumu Güncelle</p>
