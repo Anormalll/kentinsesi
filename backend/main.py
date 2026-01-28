@@ -12,18 +12,15 @@ models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
 
-# --- 1. GARANTİLİ KLASÖR YOLU AYARI (DÜZELTME BURADA) ---
-# Dosyanın nerede çalıştığını tam olarak buluyoruz
+# --- 1. GARANTİLİ KLASÖR YOLU AYARI ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Uploads klasörünü backend klasörünün yanına değil, içine sabitliyoruz
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
-print(f"--- LOG: Resimler şu klasöre kaydedilecek: {UPLOAD_DIR} ---")  # Render loglarında görmek için
+print(f"--- LOG: Resimler şu klasöre kaydedilecek: {UPLOAD_DIR} ---")
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-# Klasörü dışarı açıyoruz
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # --- CORS AYARLARI ---
@@ -35,18 +32,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # --- ENDPOINTLER ---
 
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...)):
-    # Dosya ismini güvenli hale getir
     safe_filename = file.filename.replace(" ", "_")
-
-    # Dosyanın tam yolunu oluştur
     file_location = os.path.join(UPLOAD_DIR, safe_filename)
-
-    print(f"--- LOG: Dosya yazılıyor: {file_location} ---")  # Log için
+    print(f"--- LOG: Dosya yazılıyor: {file_location} ---")
 
     try:
         with open(file_location, "wb+") as file_object:
@@ -55,10 +47,7 @@ async def upload_image(file: UploadFile = File(...)):
         print(f"--- HATA: Dosya yazılamadı! {e}")
         raise HTTPException(status_code=500, detail="Dosya sunucuya kaydedilemedi")
 
-    # Render adresini ver
     base_url = "https://kentinsesi.onrender.com"
-
-    # Tam linki oluştur
     return {"url": f"{base_url}/uploads/{safe_filename}"}
 
 
@@ -77,7 +66,6 @@ def read_complaints(skip: int = 0, limit: int = 100, db: Session = Depends(datab
     return complaints
 
 
-# --- YENİ EKLENEN: SİLME FONKSİYONU ---
 @app.delete("/complaints/{complaint_id}")
 def delete_complaint(complaint_id: int, db: Session = Depends(database.get_db)):
     complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
@@ -85,5 +73,37 @@ def delete_complaint(complaint_id: int, db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=404, detail="Şikayet bulunamadı")
 
     db.delete(complaint)
+    db.commit()
+    return {"ok": True}
+
+
+# --- ARAÇ ENDPOINTLERİ (DÜZELTİLDİ) ---
+# DİKKAT: VehicleOut yerine schemas.VehicleOut yazdık
+
+@app.post("/vehicles/", response_model=schemas.VehicleOut)
+def create_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(database.get_db)):
+    # Aynı plaka var mı kontrol et
+    db_vehicle = db.query(models.Vehicle).filter(models.Vehicle.plate == vehicle.plate).first()
+    if db_vehicle:
+        raise HTTPException(status_code=400, detail="Bu plaka zaten kayıtlı")
+
+    new_vehicle = models.Vehicle(plate=vehicle.plate, serial_no=vehicle.serial_no)
+    db.add(new_vehicle)
+    db.commit()
+    db.refresh(new_vehicle)
+    return new_vehicle
+
+
+@app.get("/vehicles/", response_model=List[schemas.VehicleOut])
+def read_vehicles(db: Session = Depends(database.get_db)):
+    return db.query(models.Vehicle).all()
+
+
+@app.delete("/vehicles/{vehicle_id}")
+def delete_vehicle(vehicle_id: int, db: Session = Depends(database.get_db)):
+    vehicle = db.query(models.Vehicle).filter(models.Vehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    db.delete(vehicle)
     db.commit()
     return {"ok": True}

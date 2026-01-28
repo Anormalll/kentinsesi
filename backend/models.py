@@ -20,3 +20,13 @@ class Complaint(Base):
     
     upvotes = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# Mevcut kodların altına ekle:
+
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plate = Column(String, unique=True, index=True) # Plaka (Örn: 34AB1234)
+    serial_no = Column(String) # Ruhsat Seri No
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

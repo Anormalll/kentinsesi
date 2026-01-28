@@ -2,29 +2,45 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home, ClipboardList, User, Plus, MapPin, X, Car, 
   FileText, LogOut, Camera, Loader2, Building2, Trash2, ChevronRight, 
-  ArrowLeft, Globe, BarChart2, ShieldCheck
+  ArrowLeft, Globe, BarChart2, ShieldCheck, AlertTriangle
 } from 'lucide-react';
-import { UserRole, Complaint, Category } from './types';
+import { UserRole, Complaint } from './types';
+
+// --- TİP TANIMLARI ---
+interface Vehicle {
+    id: number;
+    plate: string;
+    serial_no: string;
+}
+
+// --- LOGO BİLEŞENİ (DİREKT BURAYA EKLENDİ) ---
+const Logo: React.FC<{ className?: string }> = ({ className }) => {
+  return (
+    <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="32" y="32" width="448" height="448" rx="128" fill="url(#grad1)" />
+      <path d="M256 128C202.9 128 160 170.9 160 224C160 296 256 384 256 384C256 384 352 296 352 224C352 170.9 309.1 128 256 128Z" fill="white" />
+      <circle cx="256" cy="224" r="48" fill="#DC2626" />
+      <path d="M384 128C401.7 145.7 416 182 416 224C416 266 401.7 302.3 384 320" stroke="white" strokeWidth="24" strokeLinecap="round" strokeOpacity="0.6"/>
+      <path d="M128 128C110.3 145.7 96 182 96 224C96 266 110.3 302.3 128 320" stroke="white" strokeWidth="24" strokeLinecap="round" strokeOpacity="0.6"/>
+      <defs>
+        <linearGradient id="grad1" x1="32" y1="32" x2="480" y2="480" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#1E40AF" />
+          <stop offset="1" stopColor="#3B82F6" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+};
 
 // --- YARDIMCI FONKSİYONLAR ---
 
-// 1. PLAKA KONTROLÜ (Patronun İstediği Regex Mantığı)
+// 1. PLAKA KONTROLÜ
 const formatAndValidatePlate = (text: string) => {
-  // Sadece harf ve rakam bırak, büyüt
   let clean = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  
-  // Maksimum 8 karakter (Patron isteği: a)
   if (clean.length > 8) clean = clean.slice(0, 8);
-
-  // Doğrulama Mantığı
-  // ^[0-9]{2} -> 2 Rakamla başla (b)
-  // [A-Z]{2,3} -> 2 veya 3 Harf ile devam et (c)
-  // Sonrası: Harf 2 ise 4 rakam, Harf 3 ise 3 rakam (d)
-  const regex2Letter = /^[0-9]{2}[A-Z]{2}[0-9]{4}$/; // Örn: 34 CA 1460
-  const regex3Letter = /^[0-9]{2}[A-Z]{3}[0-9]{3}$/; // Örn: 06 MNA 149
-  
+  const regex2Letter = /^[0-9]{2}[A-Z]{2}[0-9]{4}$/; 
+  const regex3Letter = /^[0-9]{2}[A-Z]{3}[0-9]{3}$/; 
   const isValid = regex2Letter.test(clean) || regex3Letter.test(clean);
-
   return { value: clean, isValid };
 };
 
@@ -45,7 +61,7 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm z-10 text-center border border-zinc-100">
-        <div className="w-20 h-20 bg-blue-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner"><img src="/logo.png" className="w-16 h-16 object-contain" alt="Logo" /></div>
+        <div className="w-20 h-20 bg-blue-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner"><Logo className="w-16 h-16" /></div>
         <h1 className="text-2xl font-black text-blue-900 mb-2">KentSesi</h1>
         <p className="text-zinc-500 text-sm mb-8">Trafik ihlallerini anında bildir.</p>
         <div className="space-y-3">
@@ -57,11 +73,12 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   );
 };
 
-// --- ARAÇ KAYIT MODALI (YENİ - 5. Madde) ---
-const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+// --- ARAÇ KAYIT MODALI (BACKEND BAĞLANTILI) ---
+const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void; onRefresh: () => void }> = ({ isOpen, onClose, onRefresh }) => {
   const [plate, setPlate] = useState('');
   const [isValid, setIsValid] = useState(false);
   const [serialNo, setSerialNo] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handlePlateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const result = formatAndValidatePlate(e.target.value);
@@ -69,10 +86,26 @@ const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOp
     setIsValid(result.isValid);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if(!isValid || serialNo.length < 5) return alert("Bilgileri kontrol ediniz.");
-    alert(`Araç Kaydedildi!\nPlaka: ${plate}\nRuhsat: ${serialNo}`);
-    onClose();
+    setLoading(true);
+    try {
+        const response = await fetch('https://kentinsesi.onrender.com/vehicles/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plate, serial_no: serialNo })
+        });
+        if (response.ok) {
+            alert("Araç Başarıyla Kaydedildi!");
+            setPlate(''); setSerialNo('');
+            onRefresh(); 
+            onClose();
+        } else {
+            const err = await response.json();
+            alert("Hata: " + (err.detail || "Kaydedilemedi"));
+        }
+    } catch (e) { alert("Sunucu hatası."); }
+    finally { setLoading(false); }
   };
 
   if (!isOpen) return null;
@@ -91,36 +124,33 @@ const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOp
                 <label className="text-xs font-bold text-zinc-500 uppercase">Ruhsat Seri / No</label>
                 <input value={serialNo} onChange={e => setSerialNo(e.target.value)} placeholder="AB123456" className="w-full h-12 border border-zinc-200 rounded-xl px-4" />
             </div>
-            <button disabled={!isValid || !serialNo} onClick={handleSubmit} className="w-full h-12 bg-blue-900 text-white font-bold rounded-xl disabled:opacity-50">Kaydet</button>
+            <button disabled={!isValid || !serialNo || loading} onClick={handleSubmit} className="w-full h-12 bg-blue-900 text-white font-bold rounded-xl disabled:opacity-50 flex items-center justify-center">
+                {loading ? <Loader2 className="animate-spin" /> : "Kaydet"}
+            </button>
         </div>
       </div>
     </div>
   );
 };
 
-// --- RAPOR MODALI (GÜNCELLENDİ) ---
+// --- RAPOR MODALI ---
 const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void }> = ({ isOpen, onClose, onSubmit }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [formData, setFormData] = useState<any>({ title: '', description: '', plate: '', location: '' });
   const [isPlateValid, setIsPlateValid] = useState(false);
 
-  // 4. KONUM ALMA (GERÇEK GPS)
   const handleGetLocation = () => {
     setIsLocating(true);
-    if (!navigator.geolocation) { alert("Tarayıcınız konumu desteklemiyor."); setIsLocating(false); return; }
-
+    if (!navigator.geolocation) { alert("Tarayıcı desteklemiyor."); setIsLocating(false); return; }
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             const { latitude, longitude } = position.coords;
-            // Nominatim (OpenStreetMap) ile adrese çevirme (Ücretsiz API)
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
                 const data = await res.json();
                 setFormData((prev: any) => ({ ...prev, location: data.display_name || `${latitude}, ${longitude}` }));
-            } catch (error) {
-                setFormData((prev: any) => ({ ...prev, location: `Enlem: ${latitude}, Boylam: ${longitude}` }));
-            }
+            } catch (error) { setFormData((prev: any) => ({ ...prev, location: `${latitude}, ${longitude}` })); }
             setIsLocating(false);
         },
         () => { alert("Konum alınamadı."); setIsLocating(false); }
@@ -141,53 +171,34 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
         <button onClick={onClose} className="p-2 text-zinc-400"><X /></button><h2 className="font-bold text-lg text-blue-900">Trafik İhlal Bildirimi</h2><div className="w-10" />
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        
-        {/* KATEGORİ SEÇİMİ KALDIRILDI - OTOMATİK TRAFİK */}
-        
         <div className="space-y-4 animate-in fade-in duration-300">
-           {/* FOTOĞRAF */}
            <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex items-center gap-4">
              <div className="w-16 h-16 bg-zinc-200 rounded-lg flex items-center justify-center text-zinc-500 shrink-0 overflow-hidden relative">
                {selectedFile ? <img src={URL.createObjectURL(selectedFile)} className="w-full h-full object-cover" /> : <Camera size={24} />}
              </div>
              <div className="flex-1 min-w-0">
-               <label className="block text-xs font-bold text-blue-600 uppercase mb-1">Kanıt Fotoğrafı (Zorunlu)</label>
-               <input type="file" accept="image/*" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} className="text-sm file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer" />
+               <label className="block text-xs font-bold text-blue-600 uppercase mb-1">Kanıt Fotoğrafı</label>
+               <input type="file" accept="image/*" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} className="text-sm file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-blue-100 file:text-blue-700 cursor-pointer" />
              </div>
            </div>
-
-           {/* PLAKA (ZORUNLU & VALIDASYONLU) */}
            <div className="space-y-1">
              <label className="text-xs font-bold text-zinc-500 uppercase">Araç Plakası</label>
-             <input 
-                value={formData.plate}
-                onChange={handlePlateChange}
-                placeholder="34AB1234"
-                className={`w-full h-14 bg-zinc-50 border-2 rounded-xl px-4 text-xl font-mono uppercase tracking-widest outline-none transition-all ${isPlateValid ? 'border-green-500 text-green-700' : 'border-zinc-200 focus:border-blue-500'}`} 
-             />
-             {!isPlateValid && formData.plate.length > 0 && <p className="text-[10px] text-red-500 font-bold">Hatalı Format! Örn: 34AB1234 veya 06MNA149</p>}
+             <input value={formData.plate} onChange={handlePlateChange} placeholder="34AB1234" className={`w-full h-14 bg-zinc-50 border-2 rounded-xl px-4 text-xl font-mono uppercase tracking-widest outline-none transition-all ${isPlateValid ? 'border-green-500 text-green-700' : 'border-zinc-200'}`} />
+             {!isPlateValid && formData.plate.length > 0 && <p className="text-[10px] text-red-500 font-bold">Hatalı Format!</p>}
            </div>
-
-           {/* KONUM (GERÇEK GPS) */}
            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-blue-800 uppercase flex items-center gap-2"><MapPin size={14} /> İhlal Konumu</label>
-                <button onClick={handleGetLocation} disabled={isLocating} className="text-[10px] font-bold bg-blue-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95">
-                    {isLocating ? <Loader2 size={10} className="animate-spin" /> : <MapPin size={10} />} Konumu Bul
-                </button>
+                <label className="text-xs font-bold text-blue-800 uppercase flex items-center gap-2"><MapPin size={14} /> Konum</label>
+                <button onClick={handleGetLocation} disabled={isLocating} className="text-[10px] font-bold bg-blue-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95">{isLocating ? <Loader2 size={10} className="animate-spin" /> : "Bul"}</button>
              </div>
              <textarea value={formData.location} readOnly placeholder="Konum bekleniyor..." className="w-full bg-white border border-blue-100 rounded-xl p-3 text-xs h-16 resize-none text-zinc-600" />
            </div>
-
-           {/* BAŞLIK & AÇIKLAMA */}
-           <div className="space-y-1"><label className="text-xs font-bold text-zinc-400">İhlal Başlığı</label><input className="w-full h-12 bg-zinc-50 border border-zinc-200 rounded-xl px-4 text-sm outline-none" placeholder="Örn: Kaldırım Parkı" onChange={e => setFormData({...formData, title: e.target.value})} /></div>
-           <div className="space-y-1"><label className="text-xs font-bold text-zinc-400">Detaylı Açıklama</label><textarea className="w-full h-24 bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm outline-none resize-none" onChange={e => setFormData({...formData, description: e.target.value})} /></div>
+           <div className="space-y-1"><label className="text-xs font-bold text-zinc-400">Başlık</label><input className="w-full h-12 bg-zinc-50 border border-zinc-200 rounded-xl px-4 text-sm outline-none" placeholder="Örn: Kaldırım Parkı" onChange={e => setFormData({...formData, title: e.target.value})} /></div>
+           <div className="space-y-1"><label className="text-xs font-bold text-zinc-400">Açıklama</label><textarea className="w-full h-24 bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-sm outline-none resize-none" onChange={e => setFormData({...formData, description: e.target.value})} /></div>
         </div>
       </div>
       <div className="p-4 bg-white border-t border-zinc-100 mb-safe">
-          <button disabled={!isPlateValid || !formData.location || !selectedFile} onClick={() => onSubmit({ ...formData, category: 'Trafik', file: selectedFile })} className="w-full h-14 bg-red-600 text-white font-bold rounded-2xl shadow-lg active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all flex items-center justify-center gap-2">
-            <ShieldCheck size={20} /> İhbarı Tamamla
-          </button>
+          <button disabled={!isPlateValid || !formData.location || !selectedFile} onClick={() => onSubmit({ ...formData, category: 'Trafik', file: selectedFile })} className="w-full h-14 bg-red-600 text-white font-bold rounded-2xl shadow-lg active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"><ShieldCheck size={20} /> İhbarı Tamamla</button>
       </div>
     </div>
   );
@@ -197,10 +208,11 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
 export default function App() {
   const [role, setRole] = useState<UserRole | null>(null);
   const [view, setView] = useState<string>('HOME'); 
-  const [complaints, setComplaints] = useState<Complaint[]>([]); 
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]); 
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false); // Yeni Modal State
+  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false); 
   const [loading, setLoading] = useState(false);
   const [userAvatar, setUserAvatar] = useState("https://i.pravatar.cc/150?u=user");
 
@@ -215,8 +227,6 @@ export default function App() {
         id: item.id.toString(),
         image: item.image_url, 
         userName: item.user_name || 'Anonim Kullanıcı',
-        userAvatar: 'https://i.pravatar.cc/150',
-        createdAt: new Date(item.created_at).toLocaleDateString('tr-TR'),
         isMyReport: (item.user_name || 'Anonim Kullanıcı') === 'Anonim Kullanıcı' 
       }));
       setComplaints(formattedData);
@@ -224,7 +234,22 @@ export default function App() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { if(role) fetchComplaints(); }, [role]);
+  const fetchVehicles = async () => {
+      try {
+          const res = await fetch('https://kentinsesi.onrender.com/vehicles/');
+          if(res.ok) {
+              const data = await res.json();
+              setVehicles(data);
+          }
+      } catch(e) { console.log("Araçlar çekilemedi", e); }
+  };
+
+  useEffect(() => { 
+      if(role) {
+          fetchComplaints(); 
+          if(role === 'BELEDIYE_YETKILISI') fetchVehicles(); 
+      }
+  }, [role]);
 
   const handleAddReport = async (data: any) => {
     let finalImageUrl = "https://images.unsplash.com/photo-1518173946687-a4c8a9b749f5"; 
@@ -252,7 +277,7 @@ export default function App() {
         setComplaints(prev => prev.filter(c => c.id !== id));
         if(selectedComplaint?.id === id) setSelectedComplaint(null);
         alert("Şikayet silindi.");
-      } else { alert("Silinemedi."); }
+      }
     } catch (error) { console.error("Silme hatası:", error); }
   };
 
@@ -262,27 +287,26 @@ export default function App() {
     return { total, resolved };
   }, [complaints]);
 
+  const handleDeleteVehicle = async (id: number) => {
+      if(!confirm("Aracı silmek istediğine emin misin?")) return;
+      await fetch(`https://kentinsesi.onrender.com/vehicles/${id}`, { method: 'DELETE' });
+      fetchVehicles();
+  };
+
   if (!role) return <LoginScreen onLogin={(r) => { setRole(r); setView(r === 'VATANDAS' ? 'HOME' : 'DASHBOARD'); }} />;
 
   const renderContent = () => {
     if (loading) return <div className="p-10 text-center text-zinc-400 flex flex-col items-center"><Loader2 className="animate-spin mb-2" />Yükleniyor...</div>;
 
-    // --- 1. DEĞİŞİKLİK: VATANDAŞ EKRANI SADELEŞTİ (AKIŞ YOK) ---
     if (role === 'VATANDAS') {
         if (view === 'HOME') return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] space-y-8">
                 <div className="text-center space-y-2">
                     <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600 mb-4 animate-pulse"><Camera size={40} /></div>
-                    <h2 className="text-2xl font-black text-zinc-900">Gördün mü? Bildir!</h2>
-                    <p className="text-zinc-500">Çevrendeki hatalı park veya trafik ihlallerini anında yetkililere ilet.</p>
+                    <h2 className="text-2xl font-black text-zinc-900">Trafik İhlal Bildirimi</h2>
+                    <p className="text-zinc-500">Hatalı park veya trafik kuralı ihlallerini bildir.</p>
                 </div>
-                <button onClick={() => setIsReportModalOpen(true)} className="w-full max-w-xs h-20 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl shadow-xl shadow-red-200 flex items-center justify-center gap-3 font-bold text-xl active:scale-[0.98] transition-transform">
-                    <Plus size={32} /> Şikayet Oluştur
-                </button>
-                <div className="w-full max-w-xs bg-blue-50 p-4 rounded-2xl border border-blue-100 text-center">
-                    <p className="text-xs font-bold text-blue-800 uppercase mb-1">Toplam İhbarın</p>
-                    <p className="text-3xl font-black text-blue-600">{complaints.filter(c => c.isMyReport).length}</p>
-                </div>
+                <button onClick={() => setIsReportModalOpen(true)} className="w-full max-w-xs h-20 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl shadow-xl shadow-red-200 flex items-center justify-center gap-3 font-bold text-xl active:scale-[0.98] transition-transform"><Plus size={32} /> Şikayet Oluştur</button>
             </div>
         );
         if (view === 'LISTE') return (
@@ -304,7 +328,6 @@ export default function App() {
         );
     }
     
-    // --- YETKİLİ EKRANI ---
     if (role === 'BELEDIYE_YETKILISI' && view === 'DASHBOARD') return (
         <div className="p-4 space-y-6">
             <h2 className="text-xl font-bold text-zinc-900">Yönetim Paneli</h2>
@@ -313,18 +336,41 @@ export default function App() {
                 <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm"><div className="text-zinc-400 text-xs font-bold uppercase">Çözülen</div><div className="text-3xl font-black text-emerald-500">{stats.resolved}</div></div>
             </div>
             
-            {/* 5. DEĞİŞİKLİK: FİRMA ARAÇ KAYDI */}
-            <div className="bg-zinc-900 text-white p-6 rounded-3xl relative overflow-hidden">
-                <div className="relative z-10">
-                    <h3 className="text-lg font-bold mb-1">Kurumsal Araçlar</h3>
-                    <p className="text-zinc-400 text-xs mb-4">Şirket araçlarını sisteme tanımlayın.</p>
-                    <button onClick={() => setIsVehicleModalOpen(true)} className="bg-white text-zinc-900 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 active:scale-95"><Car size={16} /> Araç Tanımla</button>
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-zinc-900">Kurumsal Filo</h3>
+                    <button onClick={() => setIsVehicleModalOpen(true)} className="bg-zinc-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 active:scale-95"><Plus size={14} /> Ekle</button>
                 </div>
-                <Car className="absolute -bottom-4 -right-4 text-zinc-800" size={120} />
+                
+                {vehicles.length === 0 ? <div className="text-center text-zinc-400 text-sm py-4 border border-dashed rounded-xl">Kayıtlı araç yok.</div> : (
+                    <div className="grid gap-3">
+                        {vehicles.map(v => {
+                            const complaintCount = complaints.filter(c => c.plate === v.plate).length;
+                            return (
+                                <div key={v.id} className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-blue-50 text-blue-700 rounded-full flex items-center justify-center"><Car size={20} /></div>
+                                        <div>
+                                            <p className="font-black font-mono text-lg text-zinc-800">{v.plate}</p>
+                                            <p className="text-[10px] text-zinc-400">Ruhsat: {v.serial_no}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`flex flex-col items-center px-3 py-1 rounded-lg ${complaintCount > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                                            <span className="text-xs font-bold">{complaintCount}</span>
+                                            <span className="text-[8px] uppercase font-bold">İhlal</span>
+                                        </div>
+                                        <button onClick={() => handleDeleteVehicle(v.id)} className="text-zinc-300 hover:text-red-500"><Trash2 size={16} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );
-    // ... Diğer yetkili viewları (Liste, Profil) aynı mantıkla ...
+
     if (role === 'BELEDIYE_YETKILISI' && view === 'LISTE') return (
         <div className="p-4 space-y-4">
             <h2 className="text-xl font-bold text-zinc-900">Tüm İhbarlar</h2>
@@ -347,10 +393,9 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto bg-zinc-50 min-h-screen flex flex-col shadow-2xl relative">
-      <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10"><div className="flex items-center gap-2"><img src="/logo.png" className="w-10 h-10 object-contain" alt="Logo" /><span className="font-bold text-blue-900 tracking-tight">KentSesi</span></div>{role && (<div className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-full border border-zinc-200 flex items-center gap-1"><Globe size={10} /> {role === 'VATANDAS' ? 'İSTANBUL' : 'YÖNETİM'}</div>)}</header>
+      <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10"><div className="flex items-center gap-2"><Logo className="w-10 h-10 shadow-sm rounded-lg" /><span className="font-bold text-blue-900 tracking-tight">KentSesi</span></div>{role && (<div className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-full border border-zinc-200 flex items-center gap-1"><Globe size={10} /> {role === 'VATANDAS' ? 'İSTANBUL' : 'YÖNETİM'}</div>)}</header>
       <main className="flex-1 overflow-y-auto pb-24">{renderContent()}</main>
       
-      {/* NAVBAR: Vatandaş İçin SADELEŞTİRİLDİ */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-zinc-200 pb-safe max-w-md mx-auto flex h-16">
         {role === 'VATANDAS' ? (
             <>
@@ -368,7 +413,7 @@ export default function App() {
       </nav>
       
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} onSubmit={handleAddReport} />
-      <VehicleModal isOpen={isVehicleModalOpen} onClose={() => setIsVehicleModalOpen(false)} />
+      <VehicleModal isOpen={isVehicleModalOpen} onClose={() => setIsVehicleModalOpen(false)} onRefresh={fetchVehicles} />
       
       {selectedComplaint && (
         <div className="fixed inset-0 z-[110] bg-white flex flex-col animate-in slide-in-from-right duration-300">
