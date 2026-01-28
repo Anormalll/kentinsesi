@@ -13,23 +13,7 @@ interface Vehicle {
     serial_no: string;
 }
 
-// --- LOGO BİLEŞENİ (HATALISIN KONSEPTİ) ---
-const Logo: React.FC<{ className?: string }> = ({ className }) => {
-  return (
-    <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="32" y="32" width="448" height="448" rx="128" fill="url(#grad1)" />
-      {/* Ünlem İşareti (Hatalısın vurgusu) */}
-      <path d="M256 120V280" stroke="white" strokeWidth="48" strokeLinecap="round" />
-      <circle cx="256" cy="360" r="28" fill="white" />
-      <defs>
-        <linearGradient id="grad1" x1="32" y1="32" x2="480" y2="480" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#DC2626" /> {/* Kırmızı */}
-          <stop offset="1" stopColor="#991B1B" /> {/* Koyu Kırmızı */}
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-};
+// --- LOGO BİLEŞENİ KALDIRILDI (Artık public/logo.png kullanılıyor) ---
 
 // --- YARDIMCI FONKSİYONLAR ---
 
@@ -43,9 +27,8 @@ const formatAndValidatePlate = (text: string) => {
   return { value: clean, isValid };
 };
 
-// 2. DURUM ROZETİ (YENİ: 3 AŞAMALI)
+// 2. DURUM ROZETİ (3 AŞAMALI)
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  // Backend'den gelen eski statüleri yeni 3 aşamaya mapliyoruz
   let displayStatus = 'Aldık';
   let style = 'bg-gray-100 text-gray-700 border-gray-200';
 
@@ -68,7 +51,10 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm z-10 text-center border border-zinc-100">
-        <div className="w-20 h-20 bg-red-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner"><Logo className="w-16 h-16" /></div>
+        {/* LOGO DEĞİŞİMİ BURADA YAPILDI */}
+        <div className="w-24 h-24 bg-red-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner p-4">
+            <img src="/logo.png" alt="Hatalısın Logo" className="w-full h-full object-contain" />
+        </div>
         <h1 className="text-3xl font-black text-zinc-900 mb-2 tracking-tight">Hatalısın</h1>
         <p className="text-zinc-500 text-sm mb-8">Hatalı park ve ihlalleri anında bildir.</p>
         <div className="space-y-3">
@@ -291,12 +277,10 @@ export default function App() {
   const stats = useMemo(() => {
     const myComplaints = complaints.filter(c => c.isMyReport);
     const total = myComplaints.length;
-    // Status isimleri backend'den eski gelebilir, onları mapliyoruz
     const resolved = myComplaints.filter(c => c.status === 'Çözüldü' || c.status === 'Çözdük').length;
     const pending = myComplaints.filter(c => c.status === 'Beklemede' || c.status === 'Aldık').length;
     const processing = myComplaints.filter(c => c.status === 'İşlemde' || c.status === 'İnceleniyor' || c.status === 'İşleniyor').length;
     
-    // Firma stats
     const allTotal = complaints.length;
     const allResolved = complaints.filter(c => c.status === 'Çözüldü' || c.status === 'Çözdük').length;
     
@@ -317,14 +301,12 @@ export default function App() {
     if (role === 'VATANDAS') {
         if (view === 'HOME') return (
             <div className="p-6 flex flex-col min-h-[80vh]">
-                {/* 1. KISIM: BÜYÜK BUTON */}
                 <div className="mb-8">
                     <button onClick={() => setIsReportModalOpen(true)} className="w-full h-24 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl shadow-xl shadow-red-200 flex items-center justify-center gap-4 font-black text-2xl active:scale-[0.98] transition-transform">
                         <Plus size={32} /> BİLDİRİM OLUŞTUR
                     </button>
                 </div>
 
-                {/* 2. KISIM: SON 5 BİLDİRİM */}
                 <div>
                     <h3 className="text-zinc-400 text-xs font-bold uppercase mb-4 tracking-wider">Son Bildirimlerim</h3>
                     <div className="space-y-3">
@@ -366,7 +348,6 @@ export default function App() {
         );
     }
     
-    // --- YETKİLİ DASHBOARD ---
     if (role === 'BELEDIYE_YETKILISI' && view === 'DASHBOARD') return (
         <div className="p-4 space-y-6">
             <h2 className="text-xl font-bold text-zinc-900">Yönetim Paneli</h2>
@@ -410,7 +391,6 @@ export default function App() {
         </div>
     );
 
-    // FİRMA LİSTE EKRANI: Tüm Bildirimler
     if (role === 'BELEDIYE_YETKILISI' && view === 'LISTE') return (
         <div className="p-4 space-y-4">
             <h2 className="text-xl font-bold text-zinc-900">Tüm Bildirimler</h2>
@@ -420,7 +400,6 @@ export default function App() {
         </div>
     );
 
-    // PROFİL EKRANI: İSTATİSTİKLER EKLENDİ
     if (view === 'PROFIL') return (
         <div className="p-4 space-y-6">
             <div className="bg-white p-6 rounded-3xl border border-zinc-200 flex flex-col items-center text-center shadow-sm">
@@ -428,7 +407,6 @@ export default function App() {
                 <h2 className="text-xl font-bold text-zinc-900">{role === 'VATANDAS' ? 'Vatandaş Hesabı' : 'Firma Yetkilisi'}</h2>
             </div>
 
-            {/* İSTATİSTİK KARTLARI (YENİ) */}
             {role === 'VATANDAS' && (
                 <div className="grid grid-cols-3 gap-3">
                     <div className="bg-white p-3 rounded-2xl border border-zinc-100 text-center shadow-sm">
@@ -453,7 +431,14 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto bg-zinc-50 min-h-screen flex flex-col shadow-2xl relative">
-      <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10"><div className="flex items-center gap-2"><Logo className="w-8 h-8" /><span className="font-bold text-zinc-900 tracking-tight text-lg">Hatalısın</span></div>{role && (<div className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-full border border-zinc-200 flex items-center gap-1"><Globe size={10} /> {role === 'VATANDAS' ? 'İSTANBUL' : 'YÖNETİM'}</div>)}</header>
+      <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+            {/* HEADER LOGOSU DA GÜNCELLENDİ */}
+            <img src="/logo.png" alt="Hatalısın Logo" className="w-8 h-8 object-contain rounded-lg shadow-sm" />
+            <span className="font-bold text-zinc-900 tracking-tight text-lg">Hatalısın</span>
+        </div>
+        {role && (<div className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-full border border-zinc-200 flex items-center gap-1"><Globe size={10} /> {role === 'VATANDAS' ? 'İSTANBUL' : 'YÖNETİM'}</div>)}
+      </header>
       <main className="flex-1 overflow-y-auto pb-24">{renderContent()}</main>
       
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-zinc-200 pb-safe max-w-md mx-auto flex h-16">
@@ -475,14 +460,12 @@ export default function App() {
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} onSubmit={handleAddReport} />
       <VehicleModal isOpen={isVehicleModalOpen} onClose={() => setIsVehicleModalOpen(false)} onRefresh={fetchVehicles} />
       
-      {/* DETAY EKRANI (DÜZELTİLDİ: Resim boyutu ayarlandı) */}
       {selectedComplaint && (
         <div className="fixed inset-0 z-[110] bg-white flex flex-col animate-in slide-in-from-right duration-300">
              <div className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 sticky top-0 bg-white shadow-sm"><button onClick={() => setSelectedComplaint(null)} className="p-2 text-zinc-600 hover:bg-zinc-100 rounded-full"><ArrowLeft /></button><span className="text-xs font-bold text-zinc-500">DETAY #{selectedComplaint.id.slice(0,4)}</span>
              {selectedComplaint.isMyReport && <button onClick={() => handleDelete(selectedComplaint.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={18}/></button>}
              </div>
             <div className="flex-1 overflow-y-auto">
-                {/* RESİM DÜZELTME: max-h-64 ve object-contain ile taşmayı önledik */}
                 <div className="bg-zinc-100 w-full flex justify-center py-4">
                      <img src={selectedComplaint.image} className="max-h-[40vh] max-w-full object-contain shadow-lg rounded-lg" onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400?text=Resim+Yok'; }} />
                 </div>
