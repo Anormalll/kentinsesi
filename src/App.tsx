@@ -13,8 +13,6 @@ interface Vehicle {
     serial_no: string;
 }
 
-// --- LOGO BİLEŞENİ KALDIRILDI (Artık public/logo.png kullanılıyor) ---
-
 // --- YARDIMCI FONKSİYONLAR ---
 
 // 1. PLAKA KONTROLÜ
@@ -51,7 +49,7 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm z-10 text-center border border-zinc-100">
-        {/* LOGO DEĞİŞİMİ BURADA YAPILDI */}
+        {/* LOGO DEĞİŞİMİ: SVG YERİNE RESİM */}
         <div className="w-24 h-24 bg-red-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner p-4">
             <img src="/logo.png" alt="Hatalısın Logo" className="w-full h-full object-contain" />
         </div>
@@ -274,6 +272,31 @@ export default function App() {
     } catch (error) { console.error("Silme hatası:", error); }
   };
 
+  // YENİ EKLENEN DURUM GÜNCELLEME
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+      setLoading(true);
+      try {
+          const res = await fetch(`https://kentinsesi.onrender.com/complaints/${id}/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus })
+          });
+          
+          if (res.ok) {
+              setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+              if (selectedComplaint) {
+                  setSelectedComplaint(prev => prev ? { ...prev, status: newStatus } : null);
+              }
+              alert(`Durum "${newStatus}" olarak güncellendi.`);
+          }
+      } catch (error) {
+          console.error("Güncelleme hatası", error);
+          alert("Bir hata oluştu.");
+      } finally {
+          setLoading(false);
+      }
+  };
+
   const stats = useMemo(() => {
     const myComplaints = complaints.filter(c => c.isMyReport);
     const total = myComplaints.length;
@@ -433,7 +456,7 @@ export default function App() {
     <div className="max-w-md mx-auto bg-zinc-50 min-h-screen flex flex-col shadow-2xl relative">
       <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10">
         <div className="flex items-center gap-2">
-            {/* HEADER LOGOSU DA GÜNCELLENDİ */}
+            {/* HEADER LOGOSU RESİM OLARAK DEĞİŞTİRİLDİ */}
             <img src="/logo.png" alt="Hatalısın Logo" className="w-8 h-8 object-contain rounded-lg shadow-sm" />
             <span className="font-bold text-zinc-900 tracking-tight text-lg">Hatalısın</span>
         </div>
@@ -479,6 +502,33 @@ export default function App() {
                         <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100"><p className="text-[10px] font-bold text-zinc-400 uppercase mb-1">PLAKA</p><p className="font-mono text-lg font-bold text-zinc-800">{selectedComplaint.plate || '-'}</p></div>
                         <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100"><p className="text-[10px] font-bold text-zinc-400 uppercase mb-1">KONUM</p><p className="text-xs text-zinc-800 line-clamp-2">{selectedComplaint.location}</p></div>
                     </div>
+
+                    {/* YENİ EKLENEN BUTONLAR (BELEDİYE YETKİLİSİ İÇİN) */}
+                    {role === 'BELEDIYE_YETKILISI' && (
+                        <div className="mt-6 pt-6 border-t border-zinc-100">
+                            <p className="text-xs font-bold text-zinc-400 uppercase mb-3 text-center">Durumu Güncelle</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                <button 
+                                    onClick={() => handleUpdateStatus(selectedComplaint.id, 'Aldık')}
+                                    className={`py-3 rounded-xl text-xs font-bold transition-all border-2 ${selectedComplaint.status === 'Aldık' ? 'bg-zinc-800 text-white border-zinc-800' : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'}`}
+                                >
+                                    FİRMAYA İLETİLDİ
+                                </button>
+                                <button 
+                                    onClick={() => handleUpdateStatus(selectedComplaint.id, 'İşleniyor')}
+                                    className={`py-3 rounded-xl text-xs font-bold transition-all border-2 ${selectedComplaint.status === 'İşleniyor' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-100 hover:border-blue-300'}`}
+                                >
+                                    İŞLENİYOR
+                                </button>
+                                <button 
+                                    onClick={() => handleUpdateStatus(selectedComplaint.id, 'Çözüldü')}
+                                    className={`py-3 rounded-xl text-xs font-bold transition-all border-2 ${selectedComplaint.status === 'Çözüldü' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-emerald-600 border-emerald-100 hover:border-emerald-300'}`}
+                                >
+                                    ÇÖZÜLDÜ
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

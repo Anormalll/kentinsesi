@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
+from pydantic import BaseModel
 from . import models, schemas, database
 
 # Veritabanı tablolarını oluştur
@@ -107,3 +108,19 @@ def delete_vehicle(vehicle_id: int, db: Session = Depends(database.get_db)):
     db.delete(vehicle)
     db.commit()
     return {"ok": True}
+
+
+class ComplaintStatusUpdate(BaseModel):
+    status: str
+
+
+@app.put("/complaints/{complaint_id}/status")
+def update_complaint_status(complaint_id: int, status_update: ComplaintStatusUpdate,
+                            db: Session = Depends(database.get_db)):
+    complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(status_code=404, detail="Bildirim bulunamadı")
+
+    complaint.status = status_update.status
+    db.commit()
+    return {"message": "Durum güncellendi", "status": complaint.status}
