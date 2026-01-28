@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home, ClipboardList, User, Plus, MapPin, X, Car, 
   FileText, LogOut, Camera, Loader2, Building2, Trash2, ChevronRight, 
-  ArrowLeft, Globe, BarChart2, ShieldCheck, AlertTriangle
+  ArrowLeft, Globe, BarChart2, ShieldCheck, AlertTriangle, CheckCircle2, Clock
 } from 'lucide-react';
 import { UserRole, Complaint } from './types';
 
@@ -13,19 +13,18 @@ interface Vehicle {
     serial_no: string;
 }
 
-// --- LOGO BİLEŞENİ (DİREKT BURAYA EKLENDİ) ---
+// --- LOGO BİLEŞENİ (HATALISIN KONSEPTİ) ---
 const Logo: React.FC<{ className?: string }> = ({ className }) => {
   return (
     <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="32" y="32" width="448" height="448" rx="128" fill="url(#grad1)" />
-      <path d="M256 128C202.9 128 160 170.9 160 224C160 296 256 384 256 384C256 384 352 296 352 224C352 170.9 309.1 128 256 128Z" fill="white" />
-      <circle cx="256" cy="224" r="48" fill="#DC2626" />
-      <path d="M384 128C401.7 145.7 416 182 416 224C416 266 401.7 302.3 384 320" stroke="white" strokeWidth="24" strokeLinecap="round" strokeOpacity="0.6"/>
-      <path d="M128 128C110.3 145.7 96 182 96 224C96 266 110.3 302.3 128 320" stroke="white" strokeWidth="24" strokeLinecap="round" strokeOpacity="0.6"/>
+      {/* Ünlem İşareti (Hatalısın vurgusu) */}
+      <path d="M256 120V280" stroke="white" strokeWidth="48" strokeLinecap="round" />
+      <circle cx="256" cy="360" r="28" fill="white" />
       <defs>
         <linearGradient id="grad1" x1="32" y1="32" x2="480" y2="480" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#1E40AF" />
-          <stop offset="1" stopColor="#3B82F6" />
+          <stop stopColor="#DC2626" /> {/* Kırmızı */}
+          <stop offset="1" stopColor="#991B1B" /> {/* Koyu Kırmızı */}
         </linearGradient>
       </defs>
     </svg>
@@ -44,16 +43,24 @@ const formatAndValidatePlate = (text: string) => {
   return { value: clean, isValid };
 };
 
+// 2. DURUM ROZETİ (YENİ: 3 AŞAMALI)
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const styles: any = {
-    'Beklemede': 'bg-gray-100 text-gray-700 border-gray-200',
-    'İnceleniyor': 'bg-blue-100 text-blue-700 border-blue-200',
-    'İşlemde': 'bg-amber-100 text-amber-700 border-amber-200',
-    'Çözüldü': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    'Reddedildi': 'bg-red-100 text-red-700 border-red-200',
-  };
-  const style = styles[status] || styles['Beklemede'];
-  return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${style}`}>{status ? status.toUpperCase() : 'BELİRSİZ'}</span>;
+  // Backend'den gelen eski statüleri yeni 3 aşamaya mapliyoruz
+  let displayStatus = 'Aldık';
+  let style = 'bg-gray-100 text-gray-700 border-gray-200';
+
+  if (status === 'Beklemede' || status === 'Aldık') {
+      displayStatus = 'Aldık';
+      style = 'bg-gray-100 text-gray-700 border-gray-200';
+  } else if (status === 'İnceleniyor' || status === 'İşlemde' || status === 'İşleniyor') {
+      displayStatus = 'İşleniyor';
+      style = 'bg-blue-100 text-blue-700 border-blue-200';
+  } else if (status === 'Çözüldü' || status === 'Çözdük') {
+      displayStatus = 'Çözdük';
+      style = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  }
+
+  return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${style}`}>{displayStatus.toUpperCase()}</span>;
 };
 
 // --- LOGIN EKRANI ---
@@ -61,11 +68,11 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm z-10 text-center border border-zinc-100">
-        <div className="w-20 h-20 bg-blue-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner"><Logo className="w-16 h-16" /></div>
-        <h1 className="text-2xl font-black text-blue-900 mb-2">KentSesi</h1>
-        <p className="text-zinc-500 text-sm mb-8">Trafik ihlallerini anında bildir.</p>
+        <div className="w-20 h-20 bg-red-50 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner"><Logo className="w-16 h-16" /></div>
+        <h1 className="text-3xl font-black text-zinc-900 mb-2 tracking-tight">Hatalısın</h1>
+        <p className="text-zinc-500 text-sm mb-8">Hatalı park ve ihlalleri anında bildir.</p>
         <div className="space-y-3">
-          <button onClick={() => onLogin('VATANDAS')} className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3"><User size={20} /> Vatandaş Girişi</button>
+          <button onClick={() => onLogin('VATANDAS')} className="w-full py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-200 active:scale-95 transition-all flex items-center justify-center gap-3"><User size={20} /> Vatandaş Girişi</button>
           <button onClick={() => onLogin('BELEDIYE_YETKILISI')} className="w-full py-4 bg-white border-2 border-zinc-100 text-zinc-700 rounded-xl font-bold hover:bg-zinc-50 active:scale-95 transition-all flex items-center justify-center gap-3"><Building2 size={20} /> Kurumsal Giriş</button>
         </div>
       </div>
@@ -73,7 +80,7 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   );
 };
 
-// --- ARAÇ KAYIT MODALI (BACKEND BAĞLANTILI) ---
+// --- ARAÇ KAYIT MODALI ---
 const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void; onRefresh: () => void }> = ({ isOpen, onClose, onRefresh }) => {
   const [plate, setPlate] = useState('');
   const [isValid, setIsValid] = useState(false);
@@ -124,7 +131,7 @@ const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void; onRefresh: 
                 <label className="text-xs font-bold text-zinc-500 uppercase">Ruhsat Seri / No</label>
                 <input value={serialNo} onChange={e => setSerialNo(e.target.value)} placeholder="AB123456" className="w-full h-12 border border-zinc-200 rounded-xl px-4" />
             </div>
-            <button disabled={!isValid || !serialNo || loading} onClick={handleSubmit} className="w-full h-12 bg-blue-900 text-white font-bold rounded-xl disabled:opacity-50 flex items-center justify-center">
+            <button disabled={!isValid || !serialNo || loading} onClick={handleSubmit} className="w-full h-12 bg-zinc-900 text-white font-bold rounded-xl disabled:opacity-50 flex items-center justify-center">
                 {loading ? <Loader2 className="animate-spin" /> : "Kaydet"}
             </button>
         </div>
@@ -168,7 +175,7 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
   return (
     <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in slide-in-from-bottom duration-300">
       <div className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 sticky top-0 bg-white z-50">
-        <button onClick={onClose} className="p-2 text-zinc-400"><X /></button><h2 className="font-bold text-lg text-blue-900">Trafik İhlal Bildirimi</h2><div className="w-10" />
+        <button onClick={onClose} className="p-2 text-zinc-400"><X /></button><h2 className="font-bold text-lg text-zinc-900">Bildirim Oluştur</h2><div className="w-10" />
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <div className="space-y-4 animate-in fade-in duration-300">
@@ -177,8 +184,8 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
                {selectedFile ? <img src={URL.createObjectURL(selectedFile)} className="w-full h-full object-cover" /> : <Camera size={24} />}
              </div>
              <div className="flex-1 min-w-0">
-               <label className="block text-xs font-bold text-blue-600 uppercase mb-1">Kanıt Fotoğrafı</label>
-               <input type="file" accept="image/*" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} className="text-sm file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-blue-100 file:text-blue-700 cursor-pointer" />
+               <label className="block text-xs font-bold text-red-600 uppercase mb-1">Kanıt Fotoğrafı</label>
+               <input type="file" accept="image/*" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} className="text-sm file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-red-50 file:text-red-700 cursor-pointer" />
              </div>
            </div>
            <div className="space-y-1">
@@ -198,7 +205,7 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
         </div>
       </div>
       <div className="p-4 bg-white border-t border-zinc-100 mb-safe">
-          <button disabled={!isPlateValid || !formData.location || !selectedFile} onClick={() => onSubmit({ ...formData, category: 'Trafik', file: selectedFile })} className="w-full h-14 bg-red-600 text-white font-bold rounded-2xl shadow-lg active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"><ShieldCheck size={20} /> İhbarı Tamamla</button>
+          <button disabled={!isPlateValid || !formData.location || !selectedFile} onClick={() => onSubmit({ ...formData, category: 'Trafik', file: selectedFile })} className="w-full h-14 bg-red-600 text-white font-bold rounded-2xl shadow-lg active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"><ShieldCheck size={20} /> Bildirimi Tamamla</button>
       </div>
     </div>
   );
@@ -264,27 +271,36 @@ export default function App() {
         
         setIsReportModalOpen(false);
         fetchComplaints(); 
-        alert("İhbar başarıyla oluşturuldu!");
+        alert("Bildirim başarıyla oluşturuldu!");
     } catch (e) { alert("Hata oluştu."); }
   };
 
   const handleDelete = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation(); 
-    if(!confirm("Bu şikayeti silmek istediğinize emin misiniz?")) return;
+    if(!confirm("Bu bildirimi silmek istediğinize emin misiniz?")) return;
     try {
       const res = await fetch(`https://kentinsesi.onrender.com/complaints/${id}`, { method: 'DELETE' });
       if(res.ok) {
         setComplaints(prev => prev.filter(c => c.id !== id));
         if(selectedComplaint?.id === id) setSelectedComplaint(null);
-        alert("Şikayet silindi.");
+        alert("Bildirim silindi.");
       }
     } catch (error) { console.error("Silme hatası:", error); }
   };
 
   const stats = useMemo(() => {
-    const total = complaints.length;
-    const resolved = complaints.filter(c => c.status === 'Çözüldü').length;
-    return { total, resolved };
+    const myComplaints = complaints.filter(c => c.isMyReport);
+    const total = myComplaints.length;
+    // Status isimleri backend'den eski gelebilir, onları mapliyoruz
+    const resolved = myComplaints.filter(c => c.status === 'Çözüldü' || c.status === 'Çözdük').length;
+    const pending = myComplaints.filter(c => c.status === 'Beklemede' || c.status === 'Aldık').length;
+    const processing = myComplaints.filter(c => c.status === 'İşlemde' || c.status === 'İnceleniyor' || c.status === 'İşleniyor').length;
+    
+    // Firma stats
+    const allTotal = complaints.length;
+    const allResolved = complaints.filter(c => c.status === 'Çözüldü' || c.status === 'Çözdük').length;
+    
+    return { total, resolved, pending, processing, allTotal, allResolved };
   }, [complaints]);
 
   const handleDeleteVehicle = async (id: number) => {
@@ -300,40 +316,63 @@ export default function App() {
 
     if (role === 'VATANDAS') {
         if (view === 'HOME') return (
-            <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] space-y-8">
-                <div className="text-center space-y-2">
-                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600 mb-4 animate-pulse"><Camera size={40} /></div>
-                    <h2 className="text-2xl font-black text-zinc-900">Trafik İhlal Bildirimi</h2>
-                    <p className="text-zinc-500">Hatalı park veya trafik kuralı ihlallerini bildir.</p>
+            <div className="p-6 flex flex-col min-h-[80vh]">
+                {/* 1. KISIM: BÜYÜK BUTON */}
+                <div className="mb-8">
+                    <button onClick={() => setIsReportModalOpen(true)} className="w-full h-24 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl shadow-xl shadow-red-200 flex items-center justify-center gap-4 font-black text-2xl active:scale-[0.98] transition-transform">
+                        <Plus size={32} /> BİLDİRİM OLUŞTUR
+                    </button>
                 </div>
-                <button onClick={() => setIsReportModalOpen(true)} className="w-full max-w-xs h-20 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl shadow-xl shadow-red-200 flex items-center justify-center gap-3 font-bold text-xl active:scale-[0.98] transition-transform"><Plus size={32} /> Şikayet Oluştur</button>
+
+                {/* 2. KISIM: SON 5 BİLDİRİM */}
+                <div>
+                    <h3 className="text-zinc-400 text-xs font-bold uppercase mb-4 tracking-wider">Son Bildirimlerim</h3>
+                    <div className="space-y-3">
+                        {complaints.filter(c => c.isMyReport).slice(0, 5).map(c => (
+                            <div key={c.id} onClick={() => setSelectedComplaint(c)} className="bg-white p-3 rounded-xl border border-zinc-100 flex items-center gap-3 shadow-sm active:bg-zinc-50 transition-colors">
+                                <img src={c.image} className="w-12 h-12 rounded-lg object-cover bg-zinc-100 shrink-0" onError={(e) => { e.currentTarget.src = 'https://placehold.co/100?text=IMG'; }} />
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-sm text-zinc-800 truncate">{c.title}</h4>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <StatusBadge status={c.status} />
+                                        <span className="text-[10px] text-zinc-400">{c.plate}</span>
+                                    </div>
+                                </div>
+                                <ChevronRight size={16} className="text-zinc-300" />
+                            </div>
+                        ))}
+                        {complaints.filter(c => c.isMyReport).length === 0 && (
+                            <div className="text-center text-zinc-300 text-sm py-4">Henüz bildiriminiz yok.</div>
+                        )}
+                    </div>
+                </div>
             </div>
         );
         if (view === 'LISTE') return (
             <div className="p-4 space-y-4">
-                <h2 className="text-xl font-bold text-zinc-900">Geçmiş Bildirimlerim</h2>
+                <h2 className="text-xl font-bold text-zinc-900">Bildirim Geçmişi</h2>
                 {complaints.filter(c => c.isMyReport).length === 0 ? <div className="text-center text-zinc-400 py-10">Henüz bildiriminiz yok.</div> :
                  complaints.filter(c => c.isMyReport).map(c => (
                     <div key={c.id} onClick={() => setSelectedComplaint(c)} className="bg-white p-4 rounded-2xl border border-zinc-200 flex gap-4 shadow-sm relative group">
-                        <img src={c.image} className="w-20 h-20 rounded-xl object-cover bg-zinc-100" onError={(e) => { e.currentTarget.src = 'https://placehold.co/100?text=Resim'; }} />
+                        <img src={c.image} className="w-16 h-16 rounded-xl object-cover bg-zinc-100" onError={(e) => { e.currentTarget.src = 'https://placehold.co/100?text=Resim'; }} />
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between mb-1"><StatusBadge status={c.status} /><span className="text-[10px] text-zinc-400 font-mono">#{c.id.slice(0,4)}</span></div>
                             <h4 className="font-bold text-zinc-900 truncate">{c.title}</h4>
                             <p className="text-xs text-zinc-500 truncate mt-1">{c.plate || 'Plaka Yok'}</p>
                         </div>
-                        <button onClick={(e) => handleDelete(c.id, e)} className="absolute bottom-4 right-4 p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-100"><Trash2 size={16} /></button>
                     </div>
                  ))}
             </div>
         );
     }
     
+    // --- YETKİLİ DASHBOARD ---
     if (role === 'BELEDIYE_YETKILISI' && view === 'DASHBOARD') return (
         <div className="p-4 space-y-6">
             <h2 className="text-xl font-bold text-zinc-900">Yönetim Paneli</h2>
             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm"><div className="text-zinc-400 text-xs font-bold uppercase">Bekleyen</div><div className="text-3xl font-black text-blue-600">{stats.total}</div></div>
-                <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm"><div className="text-zinc-400 text-xs font-bold uppercase">Çözülen</div><div className="text-3xl font-black text-emerald-500">{stats.resolved}</div></div>
+                <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm"><div className="text-zinc-400 text-xs font-bold uppercase">Bekleyen</div><div className="text-3xl font-black text-red-600">{stats.allTotal - stats.allResolved}</div></div>
+                <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm"><div className="text-zinc-400 text-xs font-bold uppercase">Çözülen</div><div className="text-3xl font-black text-emerald-500">{stats.allResolved}</div></div>
             </div>
             
             <div className="space-y-4">
@@ -371,21 +410,42 @@ export default function App() {
         </div>
     );
 
+    // FİRMA LİSTE EKRANI: Tüm Bildirimler
     if (role === 'BELEDIYE_YETKILISI' && view === 'LISTE') return (
         <div className="p-4 space-y-4">
-            <h2 className="text-xl font-bold text-zinc-900">Tüm İhbarlar</h2>
+            <h2 className="text-xl font-bold text-zinc-900">Tüm Bildirimler</h2>
             {complaints.map(c => (
                 <div key={c.id} onClick={() => setSelectedComplaint(c)} className="bg-white p-4 rounded-2xl border border-zinc-200 flex gap-4 shadow-sm relative"><div className="flex-1"><div className="flex justify-between mb-1"><StatusBadge status={c.status} /></div><h4 className="font-bold text-sm truncate">{c.title}</h4></div><ChevronRight className="text-zinc-300 self-center" /></div>
             ))}
         </div>
     );
 
+    // PROFİL EKRANI: İSTATİSTİKLER EKLENDİ
     if (view === 'PROFIL') return (
         <div className="p-4 space-y-6">
             <div className="bg-white p-6 rounded-3xl border border-zinc-200 flex flex-col items-center text-center shadow-sm">
-                <div className="relative w-24 h-24 mb-4"><div className="w-24 h-24 rounded-full border-4 border-white shadow-xl overflow-hidden ring-2 ring-blue-500"><img src={userAvatar} className="w-full h-full object-cover" /></div><label htmlFor="avatar-upload" className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer shadow-lg"><Camera size={16} /></label><input id="avatar-upload" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files && setUserAvatar(URL.createObjectURL(e.target.files[0]))} /></div>
-                <h2 className="text-xl font-bold text-zinc-900">{role === 'VATANDAS' ? 'Vatandaş Hesabı' : 'Yönetici Hesabı'}</h2>
+                <div className="relative w-24 h-24 mb-4"><div className="w-24 h-24 rounded-full border-4 border-white shadow-xl overflow-hidden ring-2 ring-red-500"><img src={userAvatar} className="w-full h-full object-cover" /></div><label htmlFor="avatar-upload" className="absolute bottom-0 right-0 bg-red-600 text-white p-2 rounded-full cursor-pointer shadow-lg"><Camera size={16} /></label><input id="avatar-upload" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files && setUserAvatar(URL.createObjectURL(e.target.files[0]))} /></div>
+                <h2 className="text-xl font-bold text-zinc-900">{role === 'VATANDAS' ? 'Vatandaş Hesabı' : 'Firma Yetkilisi'}</h2>
             </div>
+
+            {/* İSTATİSTİK KARTLARI (YENİ) */}
+            {role === 'VATANDAS' && (
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-white p-3 rounded-2xl border border-zinc-100 text-center shadow-sm">
+                        <div className="text-red-600 font-black text-xl">{stats.total}</div>
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Toplam</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-2xl border border-zinc-100 text-center shadow-sm">
+                        <div className="text-blue-600 font-black text-xl">{stats.processing}</div>
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase">İşleniyor</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-2xl border border-zinc-100 text-center shadow-sm">
+                        <div className="text-emerald-500 font-black text-xl">{stats.resolved}</div>
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase">Çözüldü</div>
+                    </div>
+                </div>
+            )}
+
             <button onClick={() => { setRole(null); setView('HOME'); }} className="w-full flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50"><div className="flex items-center gap-3"><LogOut size={18} /> Çıkış Yap</div></button>
         </div>
     );
@@ -393,21 +453,21 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto bg-zinc-50 min-h-screen flex flex-col shadow-2xl relative">
-      <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10"><div className="flex items-center gap-2"><Logo className="w-10 h-10 shadow-sm rounded-lg" /><span className="font-bold text-blue-900 tracking-tight">KentSesi</span></div>{role && (<div className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-full border border-zinc-200 flex items-center gap-1"><Globe size={10} /> {role === 'VATANDAS' ? 'İSTANBUL' : 'YÖNETİM'}</div>)}</header>
+      <header className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 bg-white sticky top-0 z-10"><div className="flex items-center gap-2"><Logo className="w-8 h-8" /><span className="font-bold text-zinc-900 tracking-tight text-lg">Hatalısın</span></div>{role && (<div className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-full border border-zinc-200 flex items-center gap-1"><Globe size={10} /> {role === 'VATANDAS' ? 'İSTANBUL' : 'YÖNETİM'}</div>)}</header>
       <main className="flex-1 overflow-y-auto pb-24">{renderContent()}</main>
       
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-zinc-200 pb-safe max-w-md mx-auto flex h-16">
         {role === 'VATANDAS' ? (
             <>
-                <button onClick={() => setView('HOME')} className={`flex-1 flex flex-col items-center justify-center ${view === 'HOME' ? 'text-red-600' : 'text-zinc-400'}`}><Home size={20} /><span className="text-[10px] font-bold mt-1">Bildir</span></button>
-                <button onClick={() => setView('LISTE')} className={`flex-1 flex flex-col items-center justify-center ${view === 'LISTE' ? 'text-red-600' : 'text-zinc-400'}`}><ClipboardList size={20} /><span className="text-[10px] font-bold mt-1">Geçmişim</span></button>
+                <button onClick={() => setView('HOME')} className={`flex-1 flex flex-col items-center justify-center ${view === 'HOME' ? 'text-red-600' : 'text-zinc-400'}`}><Home size={20} /><span className="text-[10px] font-bold mt-1">Ana Sayfa</span></button>
+                <button onClick={() => setView('LISTE')} className={`flex-1 flex flex-col items-center justify-center ${view === 'LISTE' ? 'text-red-600' : 'text-zinc-400'}`}><ClipboardList size={20} /><span className="text-[10px] font-bold mt-1">Geçmiş</span></button>
                 <button onClick={() => setView('PROFIL')} className={`flex-1 flex flex-col items-center justify-center ${view === 'PROFIL' ? 'text-red-600' : 'text-zinc-400'}`}><User size={20} /><span className="text-[10px] font-bold mt-1">Profil</span></button>
             </>
         ) : (
             <>
-             <button onClick={() => setView('DASHBOARD')} className={`flex-1 flex flex-col items-center justify-center ${view === 'DASHBOARD' ? 'text-blue-700' : 'text-zinc-400'}`}><BarChart2 size={20} /><span className="text-[10px] font-bold mt-1">Panel</span></button>
-             <button onClick={() => setView('LISTE')} className={`flex-1 flex flex-col items-center justify-center ${view === 'LISTE' ? 'text-blue-700' : 'text-zinc-400'}`}><ClipboardList size={20} /><span className="text-[10px] font-bold mt-1">Liste</span></button>
-             <button onClick={() => setView('PROFIL')} className={`flex-1 flex flex-col items-center justify-center ${view === 'PROFIL' ? 'text-blue-700' : 'text-zinc-400'}`}><User size={20} /><span className="text-[10px] font-bold mt-1">Profil</span></button>
+             <button onClick={() => setView('DASHBOARD')} className={`flex-1 flex flex-col items-center justify-center ${view === 'DASHBOARD' ? 'text-zinc-900' : 'text-zinc-400'}`}><BarChart2 size={20} /><span className="text-[10px] font-bold mt-1">Panel</span></button>
+             <button onClick={() => setView('LISTE')} className={`flex-1 flex flex-col items-center justify-center ${view === 'LISTE' ? 'text-zinc-900' : 'text-zinc-400'}`}><ClipboardList size={20} /><span className="text-[10px] font-bold mt-1">Liste</span></button>
+             <button onClick={() => setView('PROFIL')} className={`flex-1 flex flex-col items-center justify-center ${view === 'PROFIL' ? 'text-zinc-900' : 'text-zinc-400'}`}><User size={20} /><span className="text-[10px] font-bold mt-1">Profil</span></button>
             </>
         )}
       </nav>
@@ -415,15 +475,29 @@ export default function App() {
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} onSubmit={handleAddReport} />
       <VehicleModal isOpen={isVehicleModalOpen} onClose={() => setIsVehicleModalOpen(false)} onRefresh={fetchVehicles} />
       
+      {/* DETAY EKRANI (DÜZELTİLDİ: Resim boyutu ayarlandı) */}
       {selectedComplaint && (
         <div className="fixed inset-0 z-[110] bg-white flex flex-col animate-in slide-in-from-right duration-300">
              <div className="h-16 border-b border-zinc-200 flex items-center justify-between px-4 sticky top-0 bg-white shadow-sm"><button onClick={() => setSelectedComplaint(null)} className="p-2 text-zinc-600 hover:bg-zinc-100 rounded-full"><ArrowLeft /></button><span className="text-xs font-bold text-zinc-500">DETAY #{selectedComplaint.id.slice(0,4)}</span>
              {selectedComplaint.isMyReport && <button onClick={() => handleDelete(selectedComplaint.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={18}/></button>}
              </div>
-            <div className="flex-1 overflow-y-auto"><img src={selectedComplaint.image} className="w-full aspect-video object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400?text=Resim+Yok'; }} /><div className="p-5 space-y-4"><h1 className="text-2xl font-bold text-zinc-900">{selectedComplaint.title}</h1><p className="text-zinc-600">{selectedComplaint.description}</p>
-            <div className="bg-zinc-100 p-3 rounded-xl"><p className="text-xs font-bold text-zinc-400 uppercase">PLAKA</p><p className="font-mono text-lg font-bold">{selectedComplaint.plate || '-'}</p></div>
-            <div className="bg-zinc-100 p-3 rounded-xl"><p className="text-xs font-bold text-zinc-400 uppercase">KONUM</p><p className="text-sm">{selectedComplaint.location}</p></div>
-            </div></div>
+            <div className="flex-1 overflow-y-auto">
+                {/* RESİM DÜZELTME: max-h-64 ve object-contain ile taşmayı önledik */}
+                <div className="bg-zinc-100 w-full flex justify-center py-4">
+                     <img src={selectedComplaint.image} className="max-h-[40vh] max-w-full object-contain shadow-lg rounded-lg" onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400?text=Resim+Yok'; }} />
+                </div>
+                <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                         <h1 className="text-xl font-bold text-zinc-900">{selectedComplaint.title}</h1>
+                         <StatusBadge status={selectedComplaint.status} />
+                    </div>
+                    <p className="text-zinc-600 text-sm leading-relaxed">{selectedComplaint.description}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100"><p className="text-[10px] font-bold text-zinc-400 uppercase mb-1">PLAKA</p><p className="font-mono text-lg font-bold text-zinc-800">{selectedComplaint.plate || '-'}</p></div>
+                        <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100"><p className="text-[10px] font-bold text-zinc-400 uppercase mb-1">KONUM</p><p className="text-xs text-zinc-800 line-clamp-2">{selectedComplaint.location}</p></div>
+                    </div>
+                </div>
+            </div>
         </div>
       )}
     </div>
