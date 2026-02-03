@@ -1,0 +1,9 @@
+# Vercel'in görmemesi gereken Backend dosyaları
+backend/
+*.py
+requirements.txt
+Procfile
+__pycache__/
+venv/
+env/
+.env
