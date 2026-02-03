@@ -3,9 +3,17 @@ import {
   Home, ClipboardList, User, Plus, MapPin, X, Car, 
   FileText, LogOut, Camera, Loader2, Building2, Trash2, ChevronRight, 
   ArrowLeft, Globe, BarChart2, ShieldCheck, AlertTriangle, CheckCircle2, Clock, Filter,
-  Moon, Sun // <-- YENİ İKONLAR
+  Moon, Sun, Mic, MicOff // <-- YENİ İKONLAR EKLENDİ
 } from 'lucide-react';
 import { UserRole, Complaint } from './types';
+
+// --- TYPESCRIPT İÇİN TARAYICI KONUŞMA API TANIMI ---
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
+}
 
 // --- TİP TANIMLARI ---
 interface Vehicle {
@@ -29,7 +37,6 @@ const formatAndValidatePlate = (text: string) => {
 // 2. DURUM ROZETİ (3 AŞAMALI - DARK MODE UYUMLU)
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   let displayStatus = 'Aldık';
-  // Dark mode renkleri eklendi (dark:...)
   let style = 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700';
 
   if (status === 'Beklemede' || status === 'Aldık') {
@@ -46,7 +53,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${style}`}>{displayStatus}</span>;
 };
 
-// --- LOGIN EKRANI (DARK MODE UYUMLU) ---
+// --- LOGIN EKRANI ---
 const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-300">
@@ -65,7 +72,7 @@ const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin 
   );
 };
 
-// --- ARAÇ KAYIT MODALI (DARK MODE UYUMLU) ---
+// --- ARAÇ KAYIT MODALI ---
 const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void; onRefresh: () => void }> = ({ isOpen, onClose, onRefresh }) => {
   const [plate, setPlate] = useState('');
   const [isValid, setIsValid] = useState(false);
@@ -128,12 +135,13 @@ const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void; onRefresh: 
   );
 };
 
-// --- RAPOR MODALI (DARK MODE UYUMLU) ---
+// --- RAPOR MODALI (SESLİ ASİSTAN EKLENDİ) ---
 const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void }> = ({ isOpen, onClose, onSubmit }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [formData, setFormData] = useState<any>({ title: '', description: '', plate: '', location: '' });
   const [isPlateValid, setIsPlateValid] = useState(false);
+  const [isListening, setIsListening] = useState(false); // SES DURUMU
 
   const handleGetLocation = () => {
     setIsLocating(true);
@@ -156,6 +164,40 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
     const result = formatAndValidatePlate(e.target.value);
     setFormData({ ...formData, plate: result.value });
     setIsPlateValid(result.isValid);
+  };
+
+  // --- SESLİ YAZMA FONKSİYONU ---
+  const toggleListening = () => {
+    if (isListening) {
+        setIsListening(false);
+        return;
+    }
+
+    // Tarayıcı uyumluluk kontrolü
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("Tarayıcınız sesli yazdırmayı desteklemiyor. Lütfen Chrome veya Safari kullanın.");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'tr-TR'; // Türkçe ayarı
+    recognition.continuous = false; // Tek cümle alıp dursun
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        // Mevcut metnin sonuna ekle
+        setFormData((prev: any) => ({
+            ...prev,
+            description: (prev.description ? prev.description + " " : "") + transcript
+        }));
+    };
+
+    recognition.start();
   };
 
   if (!isOpen) return null;
@@ -193,7 +235,26 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
            </div>
            {/* INPUTS */}
            <div className="space-y-1"><label className="text-xs font-bold text-zinc-400">Başlık</label><input className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 text-sm outline-none dark:text-white" placeholder="Örn: Kaldırım Parkı" onChange={e => setFormData({...formData, title: e.target.value})} /></div>
-           <div className="space-y-1"><label className="text-xs font-bold text-zinc-400">Açıklama</label><textarea className="w-full h-24 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 text-sm outline-none resize-none dark:text-white" onChange={e => setFormData({...formData, description: e.target.value})} /></div>
+           
+           {/* AÇIKLAMA VE SESLİ ASİSTAN */}
+           <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-zinc-400">Açıklama</label>
+                    <button 
+                        onClick={toggleListening}
+                        className={`text-[10px] font-bold flex items-center gap-1 px-2 py-1 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'}`}
+                    >
+                        {isListening ? <MicOff size={12} /> : <Mic size={12} />}
+                        {isListening ? 'DİNLİYOR...' : 'SESLE YAZ'}
+                    </button>
+                </div>
+                <textarea 
+                    value={formData.description}
+                    className="w-full h-24 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 text-sm outline-none resize-none dark:text-white" 
+                    onChange={e => setFormData({...formData, description: e.target.value})} 
+                    placeholder="Detayları buraya yazın veya mikrofonla söyleyin..."
+                />
+           </div>
         </div>
       </div>
       <div className="p-4 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 mb-safe">
@@ -216,10 +277,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [userAvatar, setUserAvatar] = useState("https://i.pravatar.cc/150?u=user");
   
-  // KARANLIK MOD STATE
   const [darkMode, setDarkMode] = useState(false);
 
-  // Karanlık Modu HTML elementine uygula
   useEffect(() => {
     if (darkMode) {
         document.documentElement.classList.add('dark');
