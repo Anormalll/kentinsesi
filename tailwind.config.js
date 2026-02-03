@@ -4,7 +4,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class', // <--- İŞTE SİHİRLİ AYAR BU
+  darkMode: 'class',
   theme: {
     extend: {},
   },
