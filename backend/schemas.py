@@ -10,6 +10,9 @@ class ComplaintBase(BaseModel):
     location: str
     plate: Optional[str] = None
     image_url: Optional[str] = None
+    # --- YENİ EKLENENLER ---
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 class ComplaintCreate(ComplaintBase):
     pass

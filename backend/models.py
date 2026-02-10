@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -17,6 +17,10 @@ class Complaint(Base):
     plate = Column(String, nullable=True)
     firm_name = Column(String, nullable=True)
     municipality = Column(String, nullable=True)
+
+    # --- YENİ EKLENEN KOORDİNATLAR ---
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
     
     upvotes = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
