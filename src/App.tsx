@@ -4,16 +4,15 @@ import {
   Loader2, Building2, Trash2, ChevronRight, 
   ArrowLeft, Globe, BarChart2, ShieldCheck, 
   Moon, Sun, Mic, MicOff, Map as MapIcon,
-  Camera, LogOut
+  Camera, LogOut, Navigation // <-- Navigation ikonu eklendi
 } from 'lucide-react';
 // --- HARİTA KÜTÜPHANELERİ ---
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { UserRole, Complaint } from './types';
 
-// --- LEAFLET İKON FIX (CDN KULLANARAK HATA ÇÖZÜMÜ) ---
-// Import satırlarını sildik, direkt link veriyoruz:
+// --- LEAFLET İKON FIX ---
 const DefaultIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
@@ -28,6 +27,16 @@ interface Vehicle {
     plate: string;
     serial_no: string;
 }
+
+// --- HARİTADAN TIKLAMA YAKALAYICI BİLEŞEN ---
+const LocationPickerMap: React.FC<{ onLocationSelect: (lat: number, lng: number) => void }> = ({ onLocationSelect }) => {
+    useMapEvents({
+        click(e) {
+            onLocationSelect(e.latlng.lat, e.latlng.lng);
+        },
+    });
+    return null;
+};
 
 // --- YARDIMCI FONKSİYONLAR ---
 const formatAndValidatePlate = (text: string) => {
@@ -125,30 +134,44 @@ const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void; onRefresh: 
   );
 };
 
-// --- RAPOR MODALI ---
+// --- RAPOR MODALI (HARİTADAN SEÇME EKLENDİ) ---
 const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void }> = ({ isOpen, onClose, onSubmit }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [formData, setFormData] = useState<any>({ title: '', description: '', plate: '', location: '', lat: null, lng: null });
   const [isPlateValid, setIsPlateValid] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  
+  // MODAL KONTROLÜ
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+
+  // Ortak Adres Bulma Fonksiyonu
+  const fetchAddress = async (lat: number, lng: number) => {
+      setFormData((prev: any) => ({ ...prev, lat, lng }));
+      try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await res.json();
+          setFormData((prev: any) => ({ ...prev, location: data.display_name || `${lat}, ${lng}` }));
+      } catch (error) { 
+          setFormData((prev: any) => ({ ...prev, location: `${lat}, ${lng}` })); 
+      }
+  };
 
   const handleGetLocation = () => {
     setIsLocating(true);
     if (!navigator.geolocation) { alert("Tarayıcı desteklemiyor."); setIsLocating(false); return; }
     navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            const { latitude, longitude } = position.coords;
-            setFormData((prev: any) => ({ ...prev, lat: latitude, lng: longitude }));
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-                const data = await res.json();
-                setFormData((prev: any) => ({ ...prev, location: data.display_name || `${latitude}, ${longitude}` }));
-            } catch (error) { setFormData((prev: any) => ({ ...prev, location: `${latitude}, ${longitude}` })); }
+        (position) => {
+            fetchAddress(position.coords.latitude, position.coords.longitude);
             setIsLocating(false);
         },
         () => { alert("Konum alınamadı."); setIsLocating(false); }
     );
+  };
+
+  const handleManualLocationSelect = (lat: number, lng: number) => {
+      fetchAddress(lat, lng);
+      setIsMapPickerOpen(false); // Haritayı kapat
   };
 
   const handlePlateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,20 +182,12 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
 
   const toggleListening = () => {
     if (isListening) { setIsListening(false); return; }
-    
-    // --- HATA ÇÖZÜMÜ: (window as any) KULLANIYORUZ ---
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
     if (!SpeechRecognition) { alert("Sesli yazma desteklenmiyor."); return; }
-    
     const recognition = new SpeechRecognition();
-    recognition.lang = 'tr-TR'; 
-    recognition.continuous = false; 
-    recognition.interimResults = false;
-    
+    recognition.lang = 'tr-TR'; recognition.continuous = false; recognition.interimResults = false;
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
-    
     recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setFormData((prev: any) => ({ ...prev, description: (prev.description ? prev.description + " " : "") + transcript }));
@@ -183,12 +198,14 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-[100] bg-white dark:bg-zinc-900 flex flex-col animate-in slide-in-from-bottom duration-300">
       <div className="h-16 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 sticky top-0 bg-white dark:bg-zinc-900 z-50">
         <button onClick={onClose} className="p-2 text-zinc-400"><X /></button><h2 className="font-bold text-lg text-zinc-900 dark:text-white">Bildirim Oluştur</h2><div className="w-10" />
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <div className="space-y-4 animate-in fade-in duration-300">
+           {/* FOTOĞRAF */}
            <div className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 flex items-center gap-4">
              <div className="w-16 h-16 bg-zinc-200 dark:bg-zinc-700 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 shrink-0 overflow-hidden relative">
                {selectedFile ? <img src={URL.createObjectURL(selectedFile)} className="w-full h-full object-cover" /> : <Camera size={24} />}
@@ -198,19 +215,34 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
                <input type="file" accept="image/*" onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} className="text-sm text-zinc-600 dark:text-zinc-300 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-red-50 dark:file:bg-red-900/30 file:text-red-700 dark:file:text-red-300 cursor-pointer" />
              </div>
            </div>
+           
+           {/* PLAKA */}
            <div className="space-y-1">
              <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">Araç Plakası</label>
              <input value={formData.plate} onChange={handlePlateChange} placeholder="34AB1234" className={`w-full h-14 bg-zinc-50 dark:bg-zinc-950 border-2 rounded-xl px-4 text-xl font-mono uppercase tracking-widest outline-none transition-all dark:text-white ${isPlateValid ? 'border-green-500 text-green-700 dark:text-green-400' : 'border-zinc-200 dark:border-zinc-700'}`} />
              {!isPlateValid && formData.plate.length > 0 && <p className="text-[10px] text-red-500 font-bold">Hatalı Format!</p>}
            </div>
+           
+           {/* KONUM (YENİLENMİŞ) */}
            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-2xl p-4">
              <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase flex items-center gap-2"><MapPin size={14} /> Konum</label>
-                <button onClick={handleGetLocation} disabled={isLocating} className="text-[10px] font-bold bg-blue-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95">{isLocating ? <Loader2 size={10} className="animate-spin" /> : "Bul"}</button>
+                <div className="flex gap-2">
+                    {/* MANUEL SEÇİM */}
+                    <button onClick={() => setIsMapPickerOpen(true)} className="text-[10px] font-bold bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95">
+                        <MapIcon size={12} /> Haritadan Seç
+                    </button>
+                    {/* GPS */}
+                    <button onClick={handleGetLocation} disabled={isLocating} className="text-[10px] font-bold bg-blue-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95">
+                        {isLocating ? <Loader2 size={10} className="animate-spin" /> : <><Navigation size={12} /> Bul</>}
+                    </button>
+                </div>
              </div>
              <textarea value={formData.location} readOnly placeholder="Konum bekleniyor..." className="w-full bg-white dark:bg-zinc-900 border border-blue-100 dark:border-blue-800 rounded-xl p-3 text-xs h-16 resize-none text-zinc-600 dark:text-zinc-300" />
            </div>
+
            <div className="space-y-1"><label className="text-xs font-bold text-zinc-400">Başlık</label><input className="w-full h-12 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 text-sm outline-none dark:text-white" placeholder="Örn: Kaldırım Parkı" onChange={e => setFormData({...formData, title: e.target.value})} /></div>
+           
            <div className="space-y-1">
                 <div className="flex justify-between items-center"><label className="text-xs font-bold text-zinc-400">Açıklama</label><button onClick={toggleListening} className={`text-[10px] font-bold flex items-center gap-1 px-2 py-1 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'}`}>{isListening ? <MicOff size={12} /> : <Mic size={12} />}{isListening ? 'DİNLİYOR...' : 'SESLE YAZ'}</button></div>
                 <textarea value={formData.description} className="w-full h-24 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 text-sm outline-none resize-none dark:text-white" onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Detayları buraya yazın veya mikrofonla söyleyin..." />
@@ -221,6 +253,26 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
           <button disabled={!isPlateValid || !formData.location || !selectedFile} onClick={() => onSubmit({ ...formData, category: 'Trafik', file: selectedFile })} className="w-full h-14 bg-red-600 text-white font-bold rounded-2xl shadow-lg active:scale-95 disabled:opacity-30 flex items-center justify-center gap-2"><ShieldCheck size={20} /> Bildirimi Tamamla</button>
       </div>
     </div>
+
+    {/* HARİTA SEÇİCİ MODAL (TAM EKRAN) */}
+    {isMapPickerOpen && (
+        <div className="fixed inset-0 z-[150] bg-zinc-900 flex flex-col animate-in fade-in">
+             <div className="h-16 flex items-center justify-between px-4 bg-zinc-900 text-white shrink-0 shadow-md z-10">
+                <span className="font-bold">Konumu İşaretle</span>
+                <button onClick={() => setIsMapPickerOpen(false)} className="p-2 bg-zinc-800 rounded-full"><X size={20} /></button>
+             </div>
+             <div className="flex-1 relative">
+                 <div className="absolute top-4 left-0 right-0 z-[1000] text-center pointer-events-none">
+                    <span className="bg-black/70 text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur-md">Haritada konuma dokunun</span>
+                 </div>
+                 <MapContainer center={[41.0082, 28.9784]} zoom={12} className="h-full w-full">
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <LocationPickerMap onLocationSelect={handleManualLocationSelect} />
+                 </MapContainer>
+             </div>
+        </div>
+    )}
+    </>
   );
 };
 
@@ -323,15 +375,12 @@ export default function App() {
   const renderContent = () => {
     if (loading) return <div className="p-10 text-center text-zinc-400 flex flex-col items-center"><Loader2 className="animate-spin mb-2" />Yükleniyor...</div>;
 
-    // --- HARİTA GÖRÜNÜMÜ ---
+    // --- HARİTA ANA GÖRÜNÜMÜ ---
     if (view === 'HARITA') {
         return (
             <div className="h-[80vh] w-full relative">
                 <MapContainer center={[41.0082, 28.9784]} zoom={11} scrollWheelZoom={true} className="h-full w-full z-0">
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
+                    <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     {complaints.map(c => (
                         (c.lat && c.lng) ? (
                             <Marker key={c.id} position={[c.lat, c.lng]}>
