@@ -5,6 +5,7 @@ from sqlalchemy import text  # <-- Veritabanı tamiri için gerekli
 from typing import List, Optional
 import shutil
 import os
+import sys
 import uuid
 
 # Kendi dosyalarımızdan importlar
@@ -13,6 +14,7 @@ import models, schemas
 
 # Veritabanı tablolarını oluştur
 Base.metadata.create_all(bind=engine)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 app = FastAPI()
 
