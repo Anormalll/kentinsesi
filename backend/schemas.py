@@ -11,6 +11,7 @@ class ComplaintBase(BaseModel):
     image_url: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
+    user_identifier: Optional[str] = None # <-- YENİ EKLENDİ
 
 class ComplaintCreate(ComplaintBase):
     pass

@@ -1,12 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-
-# --- DÜZELTME BURADA: Başındaki noktayı (.) kaldırdık ---
 from database import Base
 
-
-# ------------------------------------------------------
 
 class Complaint(Base):
     __tablename__ = "complaints"
@@ -24,9 +19,10 @@ class Complaint(Base):
     firm_name = Column(String, nullable=True)
     municipality = Column(String, nullable=True)
 
-    # Harita Koordinatları
+    # Harita ve Kullanıcı
     lat = Column(Float, nullable=True)
     lng = Column(Float, nullable=True)
+    user_identifier = Column(String, index=True, nullable=True)  # <-- YENİ EKLENDİ (Anonim ID)
 
     upvotes = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
