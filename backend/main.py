@@ -180,3 +180,16 @@ def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
     db.delete(vehicle)
     db.commit()
     return {"message": "Vehicle deleted"}
+
+# --- MEVCUT IMPORTLARIN ALTINA, EN SONA EKLE ---
+
+@app.get("/reset_db")
+def reset_database():
+    try:
+        # Tüm tabloları sil
+        Base.metadata.drop_all(bind=engine)
+        # Tabloları modellerdeki en güncel haliyle tekrar oluştur
+        Base.metadata.create_all(bind=engine)
+        return {"message": "Veritabanı tamamen sıfırlandı ve tüm sütunlar (user_identifier dahil) eklendi!"}
+    except Exception as e:
+        return {"message": f"Hata: {str(e)}"}
