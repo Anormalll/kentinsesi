@@ -1,22 +1,28 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request  # <-- Request eklendi
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles  # <-- Bu eklendi
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
 import shutil
-import os
 import uuid
 
-# Ayarları değiştirdiğimiz için artık direkt import edebiliriz:
 from database import SessionLocal, engine, Base
 import models, schemas
 
-# Veritabanı tablolarını oluştur
+# Klasör yoksa oluştur
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# CORS Ayarları
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,8 +31,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- KRİTİK EKLEME: Resimlerin internetten görünmesini sağlar ---
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# --- DEPENDENCY ---
+
+# -------------------------------------------------------------
+
 def get_db():
     db = SessionLocal()
     try:
@@ -35,32 +45,26 @@ def get_db():
         db.close()
 
 
-# --- DB FIX ENDPOINT (Veritabanı Sütunlarını Düzeltmek İçin) ---
 @app.get("/fix_db")
 def fix_database(db: Session = Depends(get_db)):
     try:
         try:
             db.execute(text("ALTER TABLE complaints ADD COLUMN lat FLOAT"))
-        except Exception:
-            pass  # Zaten varsa hata vermesin
+        except:
+            pass
         try:
             db.execute(text("ALTER TABLE complaints ADD COLUMN lng FLOAT"))
-        except Exception:
+        except:
             pass
         db.commit()
-        return {"message": "Veritabanı sütunları (lat/lng) başarıyla kontrol edildi/eklendi!"}
+        return {"message": "Veritabanı güncel."}
     except Exception as e:
-        return {"message": f"Hata: {str(e)}"}
+        return {"message": str(e)}
 
 
-# --- ENDPOINTLER ---
-
+# --- RESİM YÜKLEME (DÜZELTİLDİ) ---
 @app.post("/upload/")
-async def upload_image(file: UploadFile = File(...)):
-    # Resimleri 'backend/uploads' klasörüne kaydeder
-    if not os.path.exists("uploads"):
-        os.makedirs("uploads")
-
+async def upload_image(request: Request, file: UploadFile = File(...)):
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
     file_location = f"uploads/{unique_filename}"
@@ -68,8 +72,12 @@ async def upload_image(file: UploadFile = File(...)):
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    return {"url": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=80&w=1000&auto=format&fit=crop"}
+    # ARTIK GERÇEK RESİM LİNKİ DÖNÜYORUZ:
+    return {"url": str(request.base_url) + file_location}
 
+
+# ... (Diğer tüm endpointler - complaints, vehicles vs. aynı kalacak) ...
+# ... (Aşağıdaki kodları silme, olduğu gibi kalsın) ...
 
 @app.post("/complaints/", response_model=schemas.Complaint)
 def create_complaint(complaint: schemas.ComplaintCreate, db: Session = Depends(get_db)):
@@ -92,7 +100,6 @@ def update_complaint_status(complaint_id: int, status_update: schemas.ComplaintS
     db_complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
     if not db_complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
-
     db_complaint.status = status_update.status
     db.commit()
     db.refresh(db_complaint)
@@ -104,13 +111,10 @@ def delete_complaint(complaint_id: int, db: Session = Depends(get_db)):
     db_complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
     if not db_complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
-
     db.delete(db_complaint)
     db.commit()
     return {"message": "Complaint deleted"}
 
-
-# --- ARAÇ YÖNETİMİ ---
 
 @app.post("/vehicles/", response_model=schemas.Vehicle)
 def create_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db)):
