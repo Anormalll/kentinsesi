@@ -50,16 +50,14 @@ const getRankInfo = (count: number) => {
 
 // --- YARDIMCI FONKSİYONLAR ---
 const formatAndValidatePlate = (text: string) => {
-  // Sadece harf ve rakamları al, büyük harf yap
   let clean = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  
   if (clean.length > 8) clean = clean.slice(0, 8);
   
   // Gelişmiş Türkiye Plaka Formatı Kuralı:
-  // (01-81 arası il kodu) + (1, 2 veya 3 Harf) + (2, 3 veya 4 Rakam)
-  const plateRegex = /^(0[1-9]|[1-7][0-9]|8[0-1])[A-Z]{1,3}[0-9]{2,4}$/; 
-  
+  // (01-81 arası il kodu) + (1-3 Harf) + (EN AZ 3, EN FAZLA 4 Rakam)
+  const plateRegex = /^(0[1-9]|[1-7][0-9]|8[0-1])[A-Z]{1,3}[0-9]{3,4}$/; 
   const isValid = plateRegex.test(clean);
+  
   return { value: clean, isValid };
 };
 
