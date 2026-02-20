@@ -191,6 +191,16 @@ export default function App() {
   const [totalUsers, setTotalUsers] = useState<number>(0);
   const [userAvatar, setUserAvatar] = useState("https://i.pravatar.cc/150?u=user"); // <-- İŞTE BU EKSİKTİ
 
+  // --- ŞEHİR SEÇİMİ İÇİN YENİ EKLENENLER ---
+  // Uygulama açıldığında cihazın hafızasından şehri alır, yoksa ANKARA yapar (Mevcut konumuna istinaden)
+  const [city, setCity] = useState<string>(localStorage.getItem('kentinsesi_city') || 'ANKARA');
+  const [isCityModalOpen, setIsCityModalOpen] = useState(false);
+
+  // Şehir değiştiğinde cihazın hafızasına kaydet
+  useEffect(() => {
+      localStorage.setItem('kentinsesi_city', city);
+  }, [city]);
+
   useEffect(() => { 
       if (darkMode) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } 
       setUserId(getOrCreateUserId());
@@ -322,7 +332,20 @@ export default function App() {
     <div className="max-w-md mx-auto bg-zinc-50 dark:bg-zinc-950 min-h-screen flex flex-col shadow-2xl relative transition-colors duration-300">
       <header className="h-16 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 bg-white dark:bg-zinc-900 sticky top-0 z-10">
         <div className="flex items-center gap-2"><img src="/logo.png" className="w-8 h-8 object-contain rounded-lg" /><span className="font-bold text-zinc-900 dark:text-white tracking-tight text-lg">Hatalısın</span></div>
-        <div className="flex items-center gap-2">{role && (<div className="text-[10px] font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 flex items-center gap-1"><Globe size={10} /> {role === 'VATANDAS' ? 'İSTANBUL' : 'YÖNETİM'}</div>)}<button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button></div>
+        <div className="flex items-center gap-2">
+         {/* ŞEHİR BUTONU GÜNCELLENDİ */}
+            {role && (
+                <button 
+                    onClick={() => role === 'VATANDAS' && setIsCityModalOpen(true)} 
+                    className="text-[10px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 flex items-center gap-1 active:scale-95 transition-transform hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                >
+                    <Globe size={10} /> {role === 'VATANDAS' ? city : 'YÖNETİM'}
+                </button>
+            )}
+            {/* ------------------------- */}
+
+            <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
+        </div>
       </header>
       <main className="flex-1 overflow-y-auto pb-24">{renderContent()}</main>
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 pb-safe max-w-md mx-auto flex h-16 transition-colors duration-300">
@@ -343,6 +366,30 @@ export default function App() {
         )}
       </nav>
       {/* ... MODALLAR VE DETAY AYNI ... */}
+      {/* ŞEHİR SEÇİM MODALI */}
+      {isCityModalOpen && (
+          <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-end justify-center animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-t-3xl p-6 h-[70vh] flex flex-col slide-in-from-bottom-full border-t border-zinc-200 dark:border-zinc-800 shadow-2xl">
+                  <div className="flex justify-between items-center mb-4">
+                      <h2 className="font-black text-xl text-zinc-900 dark:text-white">Şehrini Seç</h2>
+                      <button onClick={() => setIsCityModalOpen(false)} className="p-2 text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded-full"><X size={18}/></button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mb-4 font-bold">Bildirimlerin seçtiğin şehre göre yetkililere iletilecektir.</p>
+                  <div className="flex-1 overflow-y-auto space-y-2 pb-safe">
+                      {["İSTANBUL", "ANKARA", "İZMİR", "BURSA", "ANTALYA", "ADANA", "KONYA", "GAZİANTEP", "ŞANLIURFA", "KOCAELİ"].map(c => (
+                          <button
+                              key={c}
+                              onClick={() => { setCity(c); setIsCityModalOpen(false); }}
+                              className={`w-full text-left p-4 rounded-2xl font-black transition-all active:scale-98 ${city === c ? 'bg-red-50 text-red-600 border-2 border-red-200 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400' : 'bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 border-2 border-transparent hover:border-zinc-200 dark:hover:border-zinc-700'}`}
+                          >
+                              {c} {city === c && '📍'}
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+      {/* ------------------- */}
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} onSubmit={handleAddReport} />
       <VehicleModal isOpen={isVehicleModalOpen} onClose={() => setIsVehicleModalOpen(false)} onRefresh={fetchVehicles} />
       {selectedComplaint && (
