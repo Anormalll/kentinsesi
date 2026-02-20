@@ -4,7 +4,8 @@ import {
   Loader2, Building2, Trash2, ChevronRight, 
   ArrowLeft, Globe, BarChart2, ShieldCheck, 
   Moon, Sun, Mic, MicOff, Map as MapIcon,
-  Camera, LogOut, Navigation, Award, TrendingUp // <-- İkonlar
+  Camera, LogOut, Navigation, Award, TrendingUp,
+  AlertTriangle, CheckCircle2 // <-- BUNLARI EKLE
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -49,11 +50,16 @@ const getRankInfo = (count: number) => {
 
 // --- YARDIMCI FONKSİYONLAR ---
 const formatAndValidatePlate = (text: string) => {
+  // Sadece harf ve rakamları al, büyük harf yap
   let clean = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  
   if (clean.length > 8) clean = clean.slice(0, 8);
-  const regex2Letter = /^[0-9]{2}[A-Z]{2}[0-9]{4}$/; 
-  const regex3Letter = /^[0-9]{2}[A-Z]{3}[0-9]{3}$/; 
-  const isValid = regex2Letter.test(clean) || regex3Letter.test(clean);
+  
+  // Gelişmiş Türkiye Plaka Formatı Kuralı:
+  // (01-81 arası il kodu) + (1, 2 veya 3 Harf) + (2, 3 veya 4 Rakam)
+  const plateRegex = /^(0[1-9]|[1-7][0-9]|8[0-1])[A-Z]{1,3}[0-9]{2,4}$/; 
+  
+  const isValid = plateRegex.test(clean);
   return { value: clean, isValid };
 };
 
@@ -114,14 +120,49 @@ const ReportModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (d
   const handleManualSelect = (lat: number, lng: number) => { fetchAddress(lat, lng); setIsMapPickerOpen(false); };
   const toggleListening = () => { if(isListening){setIsListening(false);return;} const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition; if(!SR){alert("Desteklenmiyor");return;} const r = new SR(); r.lang='tr-TR'; r.onstart=()=>setIsListening(true); r.onend=()=>setIsListening(false); r.onresult=(e:any)=>setFormData((p:any)=>({...p, description: (p.description||"")+" "+e.results[0][0].transcript})); r.start(); };
 
+  // --- PLAKA DEĞİŞİMİ İÇİN FONKSİYON ---
+  const handlePlateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const result = formatAndValidatePlate(e.target.value);
+    setFormData({ ...formData, plate: result.value });
+    setIsPlateValid(result.isValid);
+  };
+
   if (!isOpen) return null;
   return (
     <>
     <div className="fixed inset-0 z-[100] bg-white dark:bg-zinc-900 flex flex-col animate-in slide-in-from-bottom">
-      <div className="h-16 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 sticky top-0 bg-white dark:bg-zinc-900 z-50"><button onClick={onClose}><X className="dark:text-white"/></button><h2 className="font-bold text-lg dark:text-white">Bildirim</h2><div className="w-6"/></div>
+      <div className="h-16 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 sticky top-0 bg-white dark:bg-zinc-900 z-50"><button onClick={onClose}><X className="dark:text-white"/></button><h2 className="font-bold text-lg dark:text-white">Bildirim Oluştur</h2><div className="w-6"/></div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
            <div className="bg-zinc-50 dark:bg-zinc-800 p-4 rounded-xl flex items-center gap-4 border border-zinc-200 dark:border-zinc-700"><div className="w-16 h-16 bg-zinc-200 dark:bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden">{selectedFile ? <img src={URL.createObjectURL(selectedFile)} className="w-full h-full object-cover"/> : <Camera className="text-zinc-400"/>}</div><input type="file" onChange={e=>e.target.files && setSelectedFile(e.target.files[0])} className="text-sm dark:text-white"/></div>
-           <input value={formData.plate} onChange={e=>{const r=formatAndValidatePlate(e.target.value);setFormData({...formData, plate:r.value}); setIsPlateValid(r.isValid);}} placeholder="34AB1234" className={`w-full h-14 border-2 rounded-xl px-4 text-xl font-mono uppercase bg-white dark:bg-zinc-950 dark:text-white ${isPlateValid?'border-green-500':'border-zinc-200 dark:border-zinc-700'}`}/>
+           
+           {/* --- YENİ EKLENEN PLAKA KONTROLÜ --- */}
+           <div className="space-y-1">
+             <div className="flex items-center justify-between">
+                 <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">Araç Plakası</label>
+                 {formData.plate.length > 0 && !isPlateValid && (
+                     <span className="text-[10px] text-red-500 font-bold flex items-center gap-1 animate-pulse">
+                         <AlertTriangle size={12} /> Geçersiz Plaka
+                     </span>
+                 )}
+                 {isPlateValid && (
+                     <span className="text-[10px] text-green-600 dark:text-green-400 font-bold flex items-center gap-1">
+                         <CheckCircle2 size={12} /> Format Uygun
+                     </span>
+                 )}
+             </div>
+             <input 
+                value={formData.plate} 
+                onChange={handlePlateChange} 
+                placeholder="Örn: 34ABC123" 
+                maxLength={8}
+                className={`w-full h-14 bg-zinc-50 dark:bg-zinc-950 border-2 rounded-xl px-4 text-xl font-mono uppercase tracking-widest outline-none transition-all dark:text-white
+                ${formData.plate.length === 0 ? 'border-zinc-200 dark:border-zinc-700 focus:border-blue-500' : 
+                  isPlateValid ? 'border-green-500 text-green-700 dark:text-green-400 focus:ring-4 focus:ring-green-500/20' : 
+                  'border-red-500 text-red-700 dark:text-red-400 focus:ring-4 focus:ring-red-500/20'}`} 
+             />
+           </div>
+           {/* --------------------------------- */}
+
            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800"><div className="flex justify-between mb-2"><label className="text-blue-800 dark:text-blue-300 font-bold text-xs flex gap-2"><MapPin size={14}/> KONUM</label><div className="flex gap-2"><button onClick={()=>setIsMapPickerOpen(true)} className="text-[10px] bg-white text-blue-600 px-3 py-1 rounded-full border border-blue-200 font-bold">Harita</button><button onClick={handleGetLocation} className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-bold">{isLocating?<Loader2 className="animate-spin" size={12}/>:"Bul"}</button></div></div><textarea value={formData.location} readOnly className="w-full bg-transparent text-xs h-12 resize-none dark:text-zinc-300"/></div>
            <input onChange={e=>setFormData({...formData, title:e.target.value})} placeholder="Başlık" className="w-full h-12 border dark:border-zinc-700 rounded-xl px-4 dark:bg-zinc-800 dark:text-white"/>
            <div className="relative"><textarea value={formData.description} onChange={e=>setFormData({...formData, description:e.target.value})} placeholder="Açıklama..." className="w-full h-24 border dark:border-zinc-700 rounded-xl p-4 dark:bg-zinc-800 dark:text-white"/><button onClick={toggleListening} className={`absolute right-2 bottom-2 p-2 rounded-full ${isListening?'bg-red-500 text-white animate-pulse':'bg-zinc-200 text-zinc-500'}`}><Mic size={16}/></button></div>
