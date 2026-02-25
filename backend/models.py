@@ -35,3 +35,13 @@ class Vehicle(Base):
     plate = Column(String, unique=True, index=True)
     serial_no = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(String, default="VATANDAS") # VATANDAS veya BELEDIYE_YETKILISI
+    is_verified = Column(Boolean, default=False) # İleride e-mail onayı için kullanacağız
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

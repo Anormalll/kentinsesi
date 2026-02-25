@@ -43,3 +43,24 @@ class Vehicle(VehicleBase):
 
     class Config:
         from_attributes = True
+
+# --- KULLANICI VE AUTH ŞEMALARI ---
+
+class UserBase(BaseModel):
+    email: str
+    role: Optional[str] = "VATANDAS"
+
+class UserCreate(UserBase):
+    password: str
+
+class UserOut(UserBase):
+    id: int
+    is_verified: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
