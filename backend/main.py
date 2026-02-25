@@ -29,15 +29,18 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# CORS Ayarları
+# --- CORS AYARLARI (GÜNCELLENDİ) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://kentinsesi-l55p.vercel.app" # <-- Vercel'deki sitenin tam adresi
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # Resimlerin görünmesi için klasörü dışarı aç
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
