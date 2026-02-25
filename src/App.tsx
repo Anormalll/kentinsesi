@@ -73,23 +73,113 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${style}`}>{displayStatus}</span>;
 };
 
+// --- JWT ÇÖZÜCÜ (Token içindeki e-mail ve rolü okur) ---
+const parseJwt = (token: string) => {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+};
+
 // --- LOGIN EKRANI ---
-const LoginScreen: React.FC<{ onLogin: (role: UserRole) => void }> = ({ onLogin }) => {
+// --- AUTH (GİRİŞ / KAYIT) EKRANI ---
+const AuthScreen: React.FC<{ onAuthSuccess: (token: string) => void }> = ({ onAuthSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<UserRole>('VATANDAS');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (isLogin) {
+        // --- GİRİŞ YAP ---
+        const formData = new URLSearchParams();
+        formData.append('username', email); // FastAPI OAuth2 username bekler
+        formData.append('password', password);
+
+        const res = await fetch('https://kentinsesi.onrender.com/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString()
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          onAuthSuccess(data.access_token); // Token'ı ana App'e gönder
+        } else {
+          alert("E-posta veya şifre hatalı!");
+        }
+      } else {
+        // --- KAYIT OL ---
+        const res = await fetch('https://kentinsesi.onrender.com/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, role })
+        });
+
+        if (res.ok) {
+          alert("Kayıt başarılı! Şimdi giriş yapabilirsiniz.");
+          setIsLogin(true); // Kayıttan sonra giriş ekranına at
+        } else {
+          const error = await res.json();
+          alert("Hata: " + (error.detail || "Kayıt yapılamadı."));
+        }
+      }
+    } catch (error) {
+      alert("Sunucuya bağlanılamadı.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-300">
-      <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-xl w-full max-w-sm z-10 text-center border border-zinc-100 dark:border-zinc-800 transition-colors duration-300">
-        <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner p-4"><img src="/logo.png" className="w-full h-full object-contain" /></div>
-        <h1 className="text-3xl font-black text-zinc-900 dark:text-white mb-2 tracking-tight">Hatalısın</h1>
-        <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-8">Hatalı park ve ihlalleri anında bildir.</p>
-        <div className="space-y-3">
-          <button onClick={() => onLogin('VATANDAS')} className="w-full py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-200 dark:shadow-none active:scale-95 transition-all flex items-center justify-center gap-3"><User size={20} /> Vatandaş Girişi</button>
-          <button onClick={() => onLogin('BELEDIYE_YETKILISI')} className="w-full py-4 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-xl font-bold hover:bg-zinc-50 dark:hover:bg-zinc-700 active:scale-95 transition-all flex items-center justify-center gap-3"><Building2 size={20} /> Kurumsal Giriş</button>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 relative transition-colors duration-300">
+      <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-xl w-full max-w-sm z-10 border border-zinc-100 dark:border-zinc-800">
+        <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-2xl mx-auto mb-6 flex items-center justify-center p-4">
+          <img src="/logo.png" className="w-full h-full object-contain" />
         </div>
+        <h1 className="text-2xl font-black text-center text-zinc-900 dark:text-white mb-6">
+          {isLogin ? 'Hoş Geldin' : 'Aramıza Katıl'}
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email" required placeholder="E-posta adresi"
+            value={email} onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl dark:text-white outline-none focus:border-red-500 transition-all"
+          />
+          <input
+            type="password" required placeholder="Şifre"
+            value={password} onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl dark:text-white outline-none focus:border-red-500 transition-all"
+          />
+
+          {!isLogin && (
+            <select
+              value={role} onChange={(e) => setRole(e.target.value as UserRole)}
+              className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl dark:text-white outline-none font-bold text-zinc-700 dark:text-zinc-300"
+            >
+              <option value="VATANDAS">Vatandaş (Bireysel)</option>
+              <option value="BELEDIYE_YETKILISI">Kurumsal / Belediye</option>
+            </select>
+          )}
+
+          <button disabled={loading} type="submit" className="w-full py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all">
+            {loading ? 'Bekleniyor...' : (isLogin ? 'Giriş Yap' : 'Kayıt Ol')}
+          </button>
+        </form>
+
+        <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-6 text-sm text-zinc-500 dark:text-zinc-400 font-bold hover:text-red-600 transition-colors">
+          {isLogin ? 'Hesabın yok mu? Kayıt Ol' : 'Zaten hesabın var mı? Giriş Yap'}
+        </button>
       </div>
     </div>
   );
 };
-
 // --- MODALLAR ---
 const VehicleModal: React.FC<{ isOpen: boolean; onClose: () => void; onRefresh: () => void }> = ({ isOpen, onClose, onRefresh }) => {
   const [plate, setPlate] = useState(''); const [serialNo, setSerialNo] = useState(''); const [loading, setLoading] = useState(false); const [isValid, setIsValid] = useState(false);
@@ -184,6 +274,8 @@ export default function App() {
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false); 
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  // Yeni Token ve Auth State'leri
+  const [token, setToken] = useState<string | null>(localStorage.getItem('kentinsesi_token'));
   
   // --- STATE'LER (UserAvatar EKLENDİ) ---
   const [userId, setUserId] = useState<string>("");
@@ -201,10 +293,29 @@ export default function App() {
       localStorage.setItem('kentinsesi_city', city);
   }, [city]);
 
+ // Sayfa yüklendiğinde veya token değiştiğinde kimliği doğrula
   useEffect(() => { 
       if (darkMode) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } 
-      setUserId(getOrCreateUserId());
-  }, [darkMode]);
+      
+      if (token) {
+          const decoded = parseJwt(token);
+          if (decoded && decoded.exp * 1000 > Date.now()) {
+              setRole(decoded.role);
+              setUserId(decoded.sub); // Artık userId olarak kullanıcının emailini kullanıyoruz
+              localStorage.setItem('kentinsesi_token', token);
+          } else {
+              handleLogout(); // Token süresi geçmişse çıkış yap
+          }
+      }
+  }, [darkMode, token]);
+
+  const handleLogout = () => {
+      setToken(null);
+      setRole(null);
+      setUserId('');
+      localStorage.removeItem('kentinsesi_token');
+      setView('HOME');
+  };
 
   const fetchComplaints = async () => {
     setLoading(true);
@@ -275,7 +386,7 @@ export default function App() {
 
   const rankInfo = useMemo(() => getRankInfo(stats.total), [stats.total]);
 
-  if (!role) return <LoginScreen onLogin={(r) => { setRole(r); setView(r === 'VATANDAS' ? 'HOME' : 'DASHBOARD'); }} />;
+if (!token || !role) return <AuthScreen onAuthSuccess={(t) => { setToken(t); setView('HOME'); }} />;
 
   const renderContent = () => {
     if (loading) return <div className="p-10 text-center text-zinc-400 flex flex-col items-center"><Loader2 className="animate-spin mb-2" />Yükleniyor...</div>;
@@ -315,7 +426,7 @@ export default function App() {
                     <div className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border dark:border-zinc-800 text-center"><div className="text-blue-600 font-black text-xl">{stats.processing}</div><div className="text-[10px] font-bold text-zinc-400 uppercase">İşleniyor</div></div>
                     <div className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border dark:border-zinc-800 text-center"><div className="text-emerald-500 font-black text-xl">{stats.resolved}</div><div className="text-[10px] font-bold text-zinc-400 uppercase">Çözüldü</div></div>
                 </div>
-                <button onClick={() => { setRole(null); setView('HOME'); }} className="w-full flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border rounded-xl text-sm font-bold text-red-500"><div className="flex items-center gap-3"><LogOut size={18} /> Çıkış Yap</div></button>
+                <button onClick={handleLogout} className="w-full flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border rounded-xl text-sm font-bold text-red-500"><div className="flex items-center gap-3"><LogOut size={18} /> Çıkış Yap</div></button>
             </div>
         );
     }
