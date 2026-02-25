@@ -29,15 +29,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# --- CORS AYARLARI (GÜNCELLENDİ) ---
+# --- CORS AYARLARI (KESİN ÇÖZÜM) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://kentinsesi-l55p.vercel.app" # <-- Vercel'deki sitenin tam adresi
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],  # Dünyadaki tüm sitelere izin ver (Çünkü API'yiz)
+    allow_credentials=False, # Çerez kullanmadığımız için False yapıyoruz (İşte kilit nokta bu!)
     allow_methods=["*"],
     allow_headers=["*"],
 )
